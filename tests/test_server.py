@@ -1,3 +1,4 @@
+import base64
 import json
 import tempfile
 import threading
@@ -13,7 +14,17 @@ class GatewayServerTest(unittest.TestCase):
     def setUp(self):
         self.tempdir = tempfile.TemporaryDirectory()
         database = str(Path(self.tempdir.name) / "gateway.db")
-        self.server = create_server("127.0.0.1", 0, database, "test-token")
+        self.server = create_server(
+            "127.0.0.1",
+            0,
+            database,
+            "test-token",
+            admin_username="admin",
+            admin_password="admin-password",
+            bootstrap_device_id="SEA-AL10-01",
+            offline_seconds=30,
+            heartbeat_seconds=60,
+        )
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         self.thread.start()
         self.base_url = "http://127.0.0.1:%d" % self.server.server_address[1]
@@ -24,11 +35,14 @@ class GatewayServerTest(unittest.TestCase):
         self.thread.join(timeout=2)
         self.tempdir.cleanup()
 
-    def request(self, path, method="GET", payload=None, token=None):
+    def request(self, path, method="GET", payload=None, token=None, admin=False):
         data = None if payload is None else json.dumps(payload).encode("utf-8")
         headers = {"Content-Type": "application/json"}
         if token:
             headers["X-Gateway-Token"] = token
+        if admin:
+            credentials = base64.b64encode(b"admin:admin-password").decode("ascii")
+            headers["Authorization"] = "Basic " + credentials
         request = Request(self.base_url + path, data=data, headers=headers, method=method)
         with urlopen(request, timeout=3) as response:
             return response.status, json.loads(response.read().decode("utf-8"))
@@ -37,7 +51,12 @@ class GatewayServerTest(unittest.TestCase):
         status, payload = self.request("/api/health")
         self.assertEqual(status, 200)
         self.assertTrue(payload["ok"])
-        with urlopen(self.base_url + "/", timeout=3) as response:
+        with self.assertRaises(HTTPError) as raised:
+            urlopen(self.base_url + "/", timeout=3)
+        self.assertEqual(raised.exception.code, 401)
+        credentials = base64.b64encode(b"admin:admin-password").decode("ascii")
+        request = Request(self.base_url + "/", headers={"Authorization": "Basic " + credentials})
+        with urlopen(request, timeout=3) as response:
             self.assertEqual(response.status, 200)
             self.assertIn("短信与来电终端", response.read().decode("utf-8"))
 
@@ -66,12 +85,13 @@ class GatewayServerTest(unittest.TestCase):
         self.assertTrue(second["duplicate"])
         self.assertEqual(first["event_id"], second["event_id"])
 
-        _, events = self.request("/api/v1/events")
+        _, events = self.request("/api/v1/events", admin=True)
         self.assertEqual(len(events["events"]), 1)
         self.assertEqual(events["events"][0]["event_type"], "sms")
         self.assertEqual(events["events"][0]["sim_slot"], 2)
-        _, devices = self.request("/api/v1/devices")
+        _, devices = self.request("/api/v1/devices", admin=True)
         self.assertEqual(devices["devices"][0]["device_id"], "SEA-AL10-01")
+        self.assertTrue(devices["devices"][0]["online"])
 
     def test_call_type_is_inferred(self):
         event = {
@@ -84,7 +104,7 @@ class GatewayServerTest(unittest.TestCase):
         }
         status, _ = self.request("/api/v1/events", "POST", event, "test-token")
         self.assertEqual(status, 201)
-        _, events = self.request("/api/v1/events?type=call")
+        _, events = self.request("/api/v1/events?type=call", admin=True)
         self.assertEqual(len(events["events"]), 1)
         self.assertEqual(events["events"][0]["event_type"], "call")
         self.assertEqual(events["events"][0]["sim_slot"], 1)
@@ -99,8 +119,57 @@ class GatewayServerTest(unittest.TestCase):
             "sim_slot": 1,
         }
         self.request("/api/v1/events", "POST", event, "test-token")
-        _, events = self.request("/api/v1/events")
+        _, events = self.request("/api/v1/events", admin=True)
         self.assertEqual(events["events"][0]["sim_slot"], 1)
+
+    def test_heartbeat_updates_device_without_creating_event(self):
+        heartbeat = {
+            "device_id": "SEA-AL10-01",
+            "app_version": "3.5.0",
+            "battery": "88%",
+            "network": "WIFI",
+        }
+        status, response = self.request(
+            "/api/v1/devices/heartbeat", "POST", heartbeat, "test-token"
+        )
+        self.assertEqual(status, 200)
+        self.assertEqual(response["next_heartbeat_seconds"], 60)
+        _, events = self.request("/api/v1/events", admin=True)
+        self.assertEqual(events["events"], [])
+        _, devices = self.request("/api/v1/devices", admin=True)
+        self.assertTrue(devices["devices"][0]["online"])
+        self.assertTrue(devices["devices"][0]["last_heartbeat"])
+
+    def test_admin_can_provision_independent_device_token(self):
+        status, provisioned = self.request(
+            "/api/v1/admin/devices",
+            "POST",
+            {"device_id": "PIXEL-02", "label": "backup"},
+            admin=True,
+        )
+        self.assertEqual(status, 201)
+        self.assertTrue(provisioned["token"])
+
+        event = {
+            "device_id": "PIXEL-02",
+            "event_type": "sms",
+            "sender": "10086",
+            "content": "device scoped token",
+        }
+        status, _ = self.request(
+            "/api/v1/events", "POST", event, provisioned["token"]
+        )
+        self.assertEqual(status, 201)
+
+        event["device_id"] = "SEA-AL10-01"
+        with self.assertRaises(HTTPError) as raised:
+            self.request("/api/v1/events", "POST", event, provisioned["token"])
+        self.assertEqual(raised.exception.code, 401)
+
+        _, credentials = self.request("/api/v1/admin/devices", admin=True)
+        self.assertEqual(len(credentials["credentials"]), 2)
+        self.assertNotIn("token", credentials["credentials"][0])
+        self.assertNotIn("token_hash", credentials["credentials"][0])
 
 
 if __name__ == "__main__":

@@ -4,14 +4,43 @@ services:
     restart: unless-stopped
     environment:
       GATEWAY_TOKEN: ${GATEWAY_TOKEN:?set GATEWAY_TOKEN in .env}
+      SMS_GATEWAY_BOOTSTRAP_DEVICE_ID: ${SMS_GATEWAY_BOOTSTRAP_DEVICE_ID:?set bootstrap device id in .env}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:?set ADMIN_USERNAME in .env}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?set ADMIN_PASSWORD in .env}
       SMS_GATEWAY_HOST: 0.0.0.0
       SMS_GATEWAY_PORT: 8787
       SMS_GATEWAY_DB: /data/gateway.db
-    ports:
-      - "8787:8787"
+      DEVICE_HEARTBEAT_SECONDS: ${DEVICE_HEARTBEAT_SECONDS:-900}
+      DEVICE_OFFLINE_SECONDS: ${DEVICE_OFFLINE_SECONDS:-1200}
+    expose:
+      - "8787"
     volumes:
       - sms-gateway-data:/data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8787/api/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      sms-gateway:
+        condition: service_healthy
+    environment:
+      SMS_GATEWAY_DOMAIN: ${SMS_GATEWAY_DOMAIN:?set SMS_GATEWAY_DOMAIN in .env}
+      ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL in .env}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
 
 volumes:
   sms-gateway-data:
-
+  caddy-data:
+  caddy-config:

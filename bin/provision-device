@@ -1,0 +1,30 @@
+#!/bin/sh
+set -eu
+
+PROJECT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+if [ -f "$PROJECT_DIR/config/local.env" ]; then
+  set -a
+  . "$PROJECT_DIR/config/local.env"
+  set +a
+fi
+
+if [ "$#" -lt 1 ] || [ "$#" -gt 2 ]; then
+  echo "usage: $0 DEVICE_ID [LABEL]" >&2
+  exit 2
+fi
+
+: "${ADMIN_USERNAME:?ADMIN_USERNAME is required}"
+: "${ADMIN_PASSWORD:?ADMIN_PASSWORD is required}"
+
+DEVICE_ID=$1
+LABEL=${2:-$1}
+ADMIN_URL=${SMS_GATEWAY_ADMIN_URL:-http://127.0.0.1:8787}
+PAYLOAD=$(jq -nc --arg device_id "$DEVICE_ID" --arg label "$LABEL" '{device_id:$device_id,label:$label}')
+
+curl --fail-with-body --silent --show-error \
+  --user "$ADMIN_USERNAME:$ADMIN_PASSWORD" \
+  --header 'Content-Type: application/json' \
+  --request POST \
+  --data "$PAYLOAD" \
+  "$ADMIN_URL/api/v1/admin/devices"
+echo

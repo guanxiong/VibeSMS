@@ -1,4 +1,4 @@
-const state = { type: "", stats: { sms: 0, call: 0, heartbeat: 0 } };
+const state = { type: "", stats: { sms: 0, call: 0 } };
 
 const escapeHtml = (value = "") => String(value).replace(/[&<>'"]/g, char => ({
   "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;"
@@ -19,15 +19,17 @@ async function getJson(url) {
 function renderDevices(devices) {
   const container = document.querySelector("#devices");
   document.querySelector("#device-count").textContent = devices.length;
+  document.querySelector("#online-count").textContent = devices.filter(device => device.online).length;
   if (!devices.length) {
     container.innerHTML = '<p class="empty">等待终端上报…</p>';
     return;
   }
   container.innerHTML = devices.map(device => `
     <article class="device-card">
-      <div class="device-head"><strong>${escapeHtml(device.device_id)}</strong><span>${escapeHtml(device.last_event_type)}</span></div>
+      <div class="device-head"><strong>${escapeHtml(device.device_id)}</strong><span class="device-state ${device.online ? "is-online" : "is-offline"}">${device.online ? "在线" : "离线"}</span></div>
       <dl>
         <div><dt>最后在线</dt><dd>${formatTime(device.last_seen)}</dd></div>
+        <div><dt>最后心跳</dt><dd>${formatTime(device.last_heartbeat)}</dd></div>
         <div><dt>SIM</dt><dd>${device.sim_slot ? `SIM${device.sim_slot}` : "—"} ${escapeHtml(device.sim_label)}</dd></div>
         <div><dt>电量</dt><dd>${escapeHtml(device.battery || "—")}</dd></div>
         <div><dt>网络</dt><dd>${escapeHtml(device.network_type || "—")}</dd></div>
@@ -38,7 +40,7 @@ function renderDevices(devices) {
 
 function renderEvents(events) {
   const body = document.querySelector("#events");
-  state.stats = { sms: 0, call: 0, heartbeat: 0 };
+  state.stats = { sms: 0, call: 0 };
   events.forEach(item => { if (item.event_type in state.stats) state.stats[item.event_type] += 1; });
   Object.entries(state.stats).forEach(([key, count]) => {
     document.querySelector(`#${key}-count`).textContent = count;
@@ -87,4 +89,3 @@ document.querySelectorAll(".filter").forEach(button => button.addEventListener("
 
 refresh();
 setInterval(refresh, 5000);
-

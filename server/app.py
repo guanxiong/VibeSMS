@@ -6,11 +6,13 @@ the device registry, and serves a small local operations dashboard.
 """
 
 import argparse
+import base64
 import hashlib
 import hmac
 import json
 import os
 import re
+import secrets
 import sqlite3
 import threading
 from datetime import datetime, timezone
@@ -21,7 +23,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import parse_qs, urlparse
 
 
-VERSION = "0.1.0"
+VERSION = "0.2.0"
 MAX_BODY_BYTES = 1024 * 1024
 STATIC_DIR = Path(__file__).with_name("static")
 UNKNOWN_CALL_TYPES = {"", "0", "unknown", "unknown call", "未知", "未知通话"}
@@ -44,6 +46,16 @@ def first_value(payload: Dict[str, Any], *keys: str) -> Any:
         if key in payload and payload[key] is not None:
             return payload[key]
     return None
+
+
+def device_id_from_payload(payload: Dict[str, Any]) -> str:
+    return clean_text(
+        first_value(payload, "device_id", "device_mark", "device", "deviceId"), 128
+    ) or "unregistered-android"
+
+
+def token_digest(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
 def infer_event_type(payload: Dict[str, Any], call_type: str) -> str:
@@ -74,11 +86,7 @@ def normalize_sim_slot(value: Any) -> Optional[int]:
 def normalize_event(payload: Dict[str, Any]) -> Dict[str, Any]:
     call_type = clean_text(first_value(payload, "call_type", "callType"), 128)
     event_type = infer_event_type(payload, call_type)
-    device_id = clean_text(
-        first_value(payload, "device_id", "device_mark", "device", "deviceId"), 128
-    )
-    if not device_id:
-        device_id = "unregistered-android"
+    device_id = device_id_from_payload(payload)
 
     sender = clean_text(first_value(payload, "sender", "from", "phone", "mobile"), 256)
     content = clean_text(
@@ -165,7 +173,9 @@ class GatewayStore:
         CREATE INDEX IF NOT EXISTS idx_events_device_type ON events(device_id, event_type);
         CREATE TABLE IF NOT EXISTS devices (
             device_id TEXT PRIMARY KEY,
+            first_seen TEXT NOT NULL DEFAULT '',
             last_seen TEXT NOT NULL,
+            last_heartbeat TEXT NOT NULL DEFAULT '',
             app_version TEXT NOT NULL DEFAULT '',
             battery TEXT NOT NULL DEFAULT '',
             network_type TEXT NOT NULL DEFAULT '',
@@ -174,9 +184,90 @@ class GatewayStore:
             last_event_type TEXT NOT NULL DEFAULT '',
             last_sender TEXT NOT NULL DEFAULT ''
         );
+        CREATE TABLE IF NOT EXISTS device_credentials (
+            device_id TEXT PRIMARY KEY,
+            label TEXT NOT NULL DEFAULT '',
+            token_hash TEXT NOT NULL,
+            enabled INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            last_authenticated TEXT NOT NULL DEFAULT ''
+        );
         """
         with self._lock, self._connect() as connection:
             connection.executescript(schema)
+            self._ensure_column(connection, "devices", "first_seen", "TEXT NOT NULL DEFAULT ''")
+            self._ensure_column(connection, "devices", "last_heartbeat", "TEXT NOT NULL DEFAULT ''")
+            connection.execute("UPDATE devices SET first_seen = last_seen WHERE first_seen = ''")
+
+    @staticmethod
+    def _ensure_column(connection: sqlite3.Connection, table: str, column: str, definition: str) -> None:
+        columns = {row[1] for row in connection.execute("PRAGMA table_info(%s)" % table)}
+        if column not in columns:
+            connection.execute("ALTER TABLE %s ADD COLUMN %s %s" % (table, column, definition))
+
+    def ensure_device_credential(self, device_id: str, token: str, label: str = "") -> None:
+        now = utc_now()
+        with self._lock, self._connect() as connection:
+            connection.execute(
+                """INSERT OR IGNORE INTO device_credentials (
+                    device_id, label, token_hash, enabled, created_at, updated_at
+                ) VALUES (?, ?, ?, 1, ?, ?)""",
+                (device_id, label, token_digest(token), now, now),
+            )
+
+    def provision_device(self, device_id: str, label: str = "") -> str:
+        device_id = clean_text(device_id, 128)
+        if not device_id:
+            raise ValueError("device_id is required")
+        token = secrets.token_urlsafe(32)
+        now = utc_now()
+        with self._lock, self._connect() as connection:
+            connection.execute(
+                """INSERT INTO device_credentials (
+                    device_id, label, token_hash, enabled, created_at, updated_at
+                ) VALUES (?, ?, ?, 1, ?, ?)
+                ON CONFLICT(device_id) DO UPDATE SET
+                    label=excluded.label,
+                    token_hash=excluded.token_hash,
+                    enabled=1,
+                    updated_at=excluded.updated_at""",
+                (device_id, clean_text(label, 128), token_digest(token), now, now),
+            )
+        return token
+
+    def authenticate_device(self, device_id: str, token: str) -> bool:
+        if not device_id or not token:
+            return False
+        with self._lock, self._connect() as connection:
+            row = connection.execute(
+                "SELECT token_hash, enabled FROM device_credentials WHERE device_id = ?",
+                (device_id,),
+            ).fetchone()
+            if not row or row["enabled"] != 1:
+                return False
+            authenticated = hmac.compare_digest(token_digest(token), row["token_hash"])
+            if authenticated:
+                connection.execute(
+                    "UPDATE device_credentials SET last_authenticated = ? WHERE device_id = ?",
+                    (utc_now(), device_id),
+                )
+        return authenticated
+
+    def credential_count(self) -> int:
+        with self._lock, self._connect() as connection:
+            return int(connection.execute("SELECT COUNT(*) FROM device_credentials").fetchone()[0])
+
+    def list_device_credentials(self) -> List[Dict[str, Any]]:
+        with self._lock, self._connect() as connection:
+            rows = connection.execute(
+                """SELECT c.device_id, c.label, c.enabled, c.created_at, c.updated_at,
+                          c.last_authenticated, d.last_seen, d.last_heartbeat
+                   FROM device_credentials c
+                   LEFT JOIN devices d ON d.device_id = c.device_id
+                   ORDER BY c.device_id"""
+            ).fetchall()
+        return [dict(row) for row in rows]
 
     def insert_event(self, event: Dict[str, Any]) -> Tuple[bool, str]:
         created_at = utc_now()
@@ -198,9 +289,9 @@ class GatewayStore:
             inserted = cursor.rowcount == 1
             connection.execute(
                 """INSERT INTO devices (
-                    device_id, last_seen, app_version, battery, network_type,
+                    device_id, first_seen, last_seen, app_version, battery, network_type,
                     sim_slot, sim_label, last_event_type, last_sender
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(device_id) DO UPDATE SET
                     last_seen=excluded.last_seen,
                     app_version=CASE WHEN excluded.app_version != '' THEN excluded.app_version ELSE devices.app_version END,
@@ -211,12 +302,40 @@ class GatewayStore:
                     last_event_type=excluded.last_event_type,
                     last_sender=excluded.last_sender""",
                 (
-                    event["device_id"], created_at, event["app_version"], event["battery"],
+                    event["device_id"], created_at, created_at, event["app_version"], event["battery"],
                     event["network_type"], event["sim_slot"], event["sim_label"],
                     event["event_type"], event["sender"],
                 ),
             )
         return inserted, event["event_id"]
+
+    def record_heartbeat(self, payload: Dict[str, Any]) -> str:
+        device_id = device_id_from_payload(payload)
+        if device_id == "unregistered-android":
+            raise ValueError("device_id is required")
+        now = utc_now()
+        app_version = clean_text(first_value(payload, "app_version", "version"), 64)
+        battery = clean_text(first_value(payload, "battery", "battery_info"), 256)
+        network_type = clean_text(first_value(payload, "network", "network_type", "net_type"), 64)
+        sim_label = clean_text(first_value(payload, "sim", "sim_info", "card_slot", "title"), 128)
+        sim_slot = normalize_sim_slot(first_value(payload, "sim_slot", "slot", "card_slot", "sim"))
+        with self._lock, self._connect() as connection:
+            connection.execute(
+                """INSERT INTO devices (
+                    device_id, first_seen, last_seen, last_heartbeat, app_version,
+                    battery, network_type, sim_slot, sim_label, last_event_type, last_sender
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'heartbeat', '')
+                ON CONFLICT(device_id) DO UPDATE SET
+                    last_seen=excluded.last_seen,
+                    last_heartbeat=excluded.last_heartbeat,
+                    app_version=CASE WHEN excluded.app_version != '' THEN excluded.app_version ELSE devices.app_version END,
+                    battery=CASE WHEN excluded.battery != '' THEN excluded.battery ELSE devices.battery END,
+                    network_type=CASE WHEN excluded.network_type != '' THEN excluded.network_type ELSE devices.network_type END,
+                    sim_slot=COALESCE(excluded.sim_slot, devices.sim_slot),
+                    sim_label=CASE WHEN excluded.sim_label != '' THEN excluded.sim_label ELSE devices.sim_label END""",
+                (device_id, now, now, now, app_version, battery, network_type, sim_slot, sim_label),
+            )
+        return now
 
     def list_events(self, limit: int = 100, event_type: str = "", device_id: str = "") -> List[Dict[str, Any]]:
         clauses: List[str] = []
@@ -235,10 +354,24 @@ class GatewayStore:
             ).fetchall()
         return [dict(row) for row in rows]
 
-    def list_devices(self) -> List[Dict[str, Any]]:
+    def list_devices(self, offline_seconds: int = 180) -> List[Dict[str, Any]]:
         with self._lock, self._connect() as connection:
             rows = connection.execute("SELECT * FROM devices ORDER BY last_seen DESC").fetchall()
-        return [dict(row) for row in rows]
+        now = datetime.now(timezone.utc)
+        devices = []
+        for row in rows:
+            device = dict(row)
+            try:
+                last_seen = datetime.fromisoformat(device["last_seen"])
+                if last_seen.tzinfo is None:
+                    last_seen = last_seen.replace(tzinfo=timezone.utc)
+                seconds = max(0, int((now - last_seen).total_seconds()))
+            except (TypeError, ValueError):
+                seconds = offline_seconds + 1
+            device["seconds_since_seen"] = seconds
+            device["online"] = seconds <= offline_seconds
+            devices.append(device)
+        return devices
 
     def stats(self) -> Dict[str, Any]:
         with self._lock, self._connect() as connection:
@@ -263,6 +396,11 @@ class GatewayRequestHandler(BaseHTTPRequestHandler):
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("X-Frame-Options", "DENY")
         self.send_header("Referrer-Policy", "no-referrer")
+        self.send_header("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+        self.send_header(
+            "Content-Security-Policy",
+            "default-src 'self'; script-src 'self'; style-src 'self'; frame-ancestors 'none'",
+        )
         self.send_header("Cache-Control", "no-store")
 
     def _json(self, status: int, payload: Dict[str, Any]) -> None:
@@ -274,16 +412,53 @@ class GatewayRequestHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
-    def _authorized(self) -> bool:
-        expected = self.gateway_server.gateway_token
-        if not expected:
-            return True
+    def _provided_token(self) -> str:
         provided = self.headers.get("X-Gateway-Token", "")
         if not provided:
             authorization = self.headers.get("Authorization", "")
             if authorization.lower().startswith("bearer "):
                 provided = authorization[7:].strip()
-        return bool(provided) and hmac.compare_digest(provided, expected)
+        return provided
+
+    def _device_authorized(self, payload: Dict[str, Any]) -> bool:
+        provided = self._provided_token()
+        device_id = device_id_from_payload(payload)
+        if self.gateway_server.store.authenticate_device(device_id, provided):
+            return True
+        expected = self.gateway_server.legacy_gateway_token
+        return (
+            self.gateway_server.store.credential_count() == 0
+            and bool(expected)
+            and bool(provided)
+            and hmac.compare_digest(provided, expected)
+        )
+
+    def _admin_authorized(self) -> bool:
+        expected_user = self.gateway_server.admin_username
+        expected_password = self.gateway_server.admin_password
+        if not expected_user and not expected_password:
+            return True
+        authorization = self.headers.get("Authorization", "")
+        if not authorization.lower().startswith("basic "):
+            return False
+        try:
+            decoded = base64.b64decode(authorization[6:].strip(), validate=True).decode("utf-8")
+            username, password = decoded.split(":", 1)
+        except (ValueError, UnicodeDecodeError):
+            return False
+        return hmac.compare_digest(username, expected_user) and hmac.compare_digest(
+            password, expected_password
+        )
+
+    def _admin_unauthorized(self) -> None:
+        body = json.dumps({"ok": False, "error": "admin authentication required"}).encode("utf-8")
+        self.send_response(HTTPStatus.UNAUTHORIZED)
+        self.send_header("WWW-Authenticate", 'Basic realm="SMS Gateway Admin", charset="UTF-8"')
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self._security_headers()
+        self.end_headers()
+        self.wfile.write(body)
 
     def _read_json(self) -> Dict[str, Any]:
         content_length = self.headers.get("Content-Length")
@@ -303,16 +478,49 @@ class GatewayRequestHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         path = urlparse(self.path).path.rstrip("/")
+        if path == "/api/v1/admin/devices" or (
+            path.startswith("/api/v1/admin/devices/") and path.endswith("/rotate")
+        ):
+            if not self._admin_authorized():
+                self._admin_unauthorized()
+                return
+            try:
+                payload = self._read_json()
+                if path.endswith("/rotate"):
+                    device_id = path[len("/api/v1/admin/devices/") : -len("/rotate")].strip("/")
+                else:
+                    device_id = clean_text(payload.get("device_id"), 128)
+                token = self.gateway_server.store.provision_device(
+                    device_id, clean_text(payload.get("label"), 128)
+                )
+            except (ValueError, TypeError) as exc:
+                self._json(HTTPStatus.BAD_REQUEST, {"ok": False, "error": str(exc)})
+                return
+            self._json(
+                HTTPStatus.CREATED,
+                {"ok": True, "device_id": device_id, "token": token, "token_shown_once": True},
+            )
+            return
         if path not in {"/api/v1/events", "/api/v1/devices/heartbeat"}:
             self._json(HTTPStatus.NOT_FOUND, {"ok": False, "error": "not found"})
             return
-        if not self._authorized():
-            self._json(HTTPStatus.UNAUTHORIZED, {"ok": False, "error": "unauthorized"})
-            return
         try:
             payload = self._read_json()
+            if not self._device_authorized(payload):
+                self._json(HTTPStatus.UNAUTHORIZED, {"ok": False, "error": "unauthorized device"})
+                return
             if path.endswith("heartbeat"):
-                payload["event_type"] = "heartbeat"
+                heartbeat_at = self.gateway_server.store.record_heartbeat(payload)
+                self._json(
+                    HTTPStatus.OK,
+                    {
+                        "ok": True,
+                        "code": "SMS_MVP_OK",
+                        "heartbeat_at": heartbeat_at,
+                        "next_heartbeat_seconds": self.gateway_server.heartbeat_seconds,
+                    },
+                )
+                return
             event = normalize_event(payload)
             inserted, event_id = self.gateway_server.store.insert_event(event)
         except (ValueError, TypeError) as exc:
@@ -335,6 +543,9 @@ class GatewayRequestHandler(BaseHTTPRequestHandler):
         if path == "/api/health":
             self._json(HTTPStatus.OK, {"ok": True, "version": VERSION, **self.gateway_server.store.stats()})
             return
+        if not self._admin_authorized():
+            self._admin_unauthorized()
+            return
         if path == "/api/v1/events":
             try:
                 limit = int(query.get("limit", ["100"])[0])
@@ -348,7 +559,20 @@ class GatewayRequestHandler(BaseHTTPRequestHandler):
             self._json(HTTPStatus.OK, {"ok": True, "events": events})
             return
         if path == "/api/v1/devices":
-            self._json(HTTPStatus.OK, {"ok": True, "devices": self.gateway_server.store.list_devices()})
+            self._json(
+                HTTPStatus.OK,
+                {
+                    "ok": True,
+                    "offline_seconds": self.gateway_server.offline_seconds,
+                    "devices": self.gateway_server.store.list_devices(self.gateway_server.offline_seconds),
+                },
+            )
+            return
+        if path == "/api/v1/admin/devices":
+            self._json(
+                HTTPStatus.OK,
+                {"ok": True, "credentials": self.gateway_server.store.list_device_credentials()},
+            )
             return
         self._serve_static(path)
 
@@ -375,14 +599,49 @@ class GatewayRequestHandler(BaseHTTPRequestHandler):
 class GatewayHTTPServer(ThreadingHTTPServer):
     daemon_threads = True
 
-    def __init__(self, address: Tuple[str, int], store: GatewayStore, gateway_token: str):
+    def __init__(
+        self,
+        address: Tuple[str, int],
+        store: GatewayStore,
+        gateway_token: str,
+        admin_username: str = "",
+        admin_password: str = "",
+        bootstrap_device_id: str = "",
+        offline_seconds: int = 180,
+        heartbeat_seconds: int = 300,
+    ):
         super().__init__(address, GatewayRequestHandler)
         self.store = store
-        self.gateway_token = gateway_token
+        self.legacy_gateway_token = gateway_token
+        self.admin_username = admin_username
+        self.admin_password = admin_password
+        self.offline_seconds = max(30, offline_seconds)
+        self.heartbeat_seconds = max(60, heartbeat_seconds)
+        if bootstrap_device_id and gateway_token:
+            self.store.ensure_device_credential(bootstrap_device_id, gateway_token, bootstrap_device_id)
 
 
-def create_server(host: str, port: int, database_path: str, gateway_token: str) -> GatewayHTTPServer:
-    return GatewayHTTPServer((host, port), GatewayStore(database_path), gateway_token)
+def create_server(
+    host: str,
+    port: int,
+    database_path: str,
+    gateway_token: str,
+    admin_username: str = "",
+    admin_password: str = "",
+    bootstrap_device_id: str = "",
+    offline_seconds: int = 180,
+    heartbeat_seconds: int = 300,
+) -> GatewayHTTPServer:
+    return GatewayHTTPServer(
+        (host, port),
+        GatewayStore(database_path),
+        gateway_token,
+        admin_username,
+        admin_password,
+        bootstrap_device_id,
+        offline_seconds,
+        heartbeat_seconds,
+    )
 
 
 def parse_args() -> argparse.Namespace:
@@ -398,7 +657,23 @@ def main() -> None:
     token = os.environ.get("GATEWAY_TOKEN", "").strip()
     if not token:
         raise SystemExit("GATEWAY_TOKEN must be set")
-    server = create_server(args.host, args.port, args.database, token)
+    admin_username = os.environ.get("ADMIN_USERNAME", "").strip()
+    admin_password = os.environ.get("ADMIN_PASSWORD", "").strip()
+    if args.host not in {"127.0.0.1", "localhost", "::1"} and (
+        not admin_username or not admin_password
+    ):
+        raise SystemExit("ADMIN_USERNAME and ADMIN_PASSWORD must be set on non-loopback hosts")
+    server = create_server(
+        args.host,
+        args.port,
+        args.database,
+        token,
+        admin_username,
+        admin_password,
+        os.environ.get("SMS_GATEWAY_BOOTSTRAP_DEVICE_ID", "").strip(),
+        int(os.environ.get("DEVICE_OFFLINE_SECONDS", "180")),
+        int(os.environ.get("DEVICE_HEARTBEAT_SECONDS", "300")),
+    )
     print(
         "SMS Gateway MVP %s listening on http://%s:%s (db=%s)"
         % (VERSION, args.host, args.port, args.database),
