@@ -6,7 +6,7 @@
 | --- | --- | --- | --- | --- | --- |
 | MVP-001 | Critical | 实现单台双卡 Android 的短信与来电事件采集、上传、持久化和管理页面 | Codex | root-20260804-mvp1 | APPROVED |
 | MVP-002 | High | 使用运营商真实短信和来电完成最终端到端验收 | User + Codex | root-20260804-mvp1 | APPROVED |
-| MVP-003 | Medium | 补充断网恢复后的自动补发、主动设备心跳与公网部署 | Unassigned | - | PENDING |
+| MVP-003 | Medium | 补充断网恢复后的自动补发、主动设备心跳、设备独立密钥、管理端认证与 HTTPS 公网部署 | Codex | root-20260804-mvp3 | IN PROGRESS |
 
 ## MVP-001 Acceptance Criteria
 
