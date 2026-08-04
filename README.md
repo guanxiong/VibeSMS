@@ -7,7 +7,7 @@
 - Android 端：首轮复用开源 SmsForwarder，采集入站短信和来电事件。
 - 服务端：Python 标准库 + SQLite，无第三方运行依赖。
 - 能力：上传鉴权、事件去重、设备 Last Seen、短信/来电查询、响应式管理页面。
-- 暂不包含：主动发短信、远程接听、MDM、集群调度和高可用。
+- 暂不包含：主动发短信、远程接听、断网恢复自动补发、MDM、集群调度和高可用。
 
 ## 本地启动
 
@@ -31,6 +31,7 @@ curl http://127.0.0.1:8787/api/health
 ```
 
 手机端详细配置见 [docs/SMSFORWARDER_SETUP.md](docs/SMSFORWARDER_SETUP.md)。
+当前真机验收状态见 [docs/REAL_DEVICE_ACCEPTANCE.md](docs/REAL_DEVICE_ACCEPTANCE.md)。
 
 ## Docker 部署
 
@@ -41,6 +42,8 @@ docker compose up -d --build
 ```
 
 公网部署必须在前面增加 HTTPS 反向代理，并限制管理页面访问来源。
+
+当前管理查询接口没有单独的登录层；公网使用时必须由反向代理增加认证，不能直接暴露 `8787` 端口。
 
 ## API
 
@@ -55,4 +58,3 @@ docker compose up -d --build
 ```bash
 python3 -m unittest -v
 ```
-
