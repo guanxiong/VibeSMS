@@ -15,6 +15,11 @@ Android 端：SmsForwarder 3.5.0
 - 创建 `All SMS` 和 `All Calls` 两条不限卡槽的全量规则。
 - 使用规则测试覆盖 SMS SIM1、SMS SIM2、Call SIM1、Call SIM2，服务端均成功入库，槽位与订阅 ID 对应正确。
 - 请求重试设置为最多 3 次、递增间隔从 1 秒开始、单次超时 10 秒。
+- 管理端已启用独立 Basic Auth；设备 Token 仅绑定 `SEA-AL10-01`。
+- `SMS MVP` 已切换为局域网 Webhook；移除 `adb reverse` 后通道测试仍成功。
+- `SMS Heartbeat` 通道已成功更新服务端心跳，未产生伪短信事件。
+- `Gateway Reliability` 自动任务已启用：每 15 分钟重发最近 24 小时失败记录并发送心跳。
+- 无人操作手机时，定时任务在 2026-08-04 15:59:59（Asia/Shanghai）自动更新心跳，证明后台调度已生效。
 
 ## 运营商真实信号验收
 
@@ -29,6 +34,6 @@ Android 端：SmsForwarder 3.5.0
 ## 已知边界
 
 - 规则测试页的短信模拟会错误携带默认通话类型，真实短信广播不受影响。
-- ADB reverse 只用于 USB 联调，断开 USB 后失效。
-- 长时间断网后的自动补发尚未实现；当前只有请求内重试与本机失败日志。
-- 管理查询接口没有内置登录层，公网部署必须放在带 HTTPS 和认证的反向代理后。
+- 当前无 USB 验收使用局域网 HTTP；离开该 Wi-Fi 前必须切换到正式 HTTPS 域名。
+- Caddy 生产配置已提供，但签发公网证书仍要求真实域名、DNS 和可访问的 80/443 端口。
+- SmsForwarder 的定时任务受 Android 后台调度影响，网络恢复补发目标是 15 分钟级而非实时消息队列 SLA。

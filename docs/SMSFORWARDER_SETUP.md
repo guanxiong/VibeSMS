@@ -17,7 +17,7 @@
 - 名称：`SMS MVP`
 - 启用：是
 - 方法：`POST`
-- Web Server：`http://127.0.0.1:8787/api/v1/events`
+- Web Server：USB 联调使用 `http://127.0.0.1:8787/api/v1/events`；长期运行使用局域网或 HTTPS 服务器地址
 - 响应关键字：`SMS_MVP_OK`
 - Header `Content-Type`：`application/json`
 - Header `X-Gateway-Token`：读取 `config/local.env` 中的 `GATEWAY_TOKEN`
@@ -64,6 +64,13 @@ SmsForwarder 3.5.0 的“短信规则测试”存在一个仅限测试界面的�
 
 USB 断开后 `adb reverse` 会失效。正式部署时将 Web Server 改为服务器的 HTTPS 公网地址。
 
-## 5. 当前可靠性边界
+## 5. 心跳与断网补发
 
-SmsForwarder 的 Webhook 支持请求内有限次数重试，并在本机保存转发日志。当前版本不会在网络长时间中断后自动扫描失败日志并补发；这个能力属于下一迭代，不能把“3 次请求重试”视为可靠消息队列。
+SmsForwarder 的 Webhook 支持请求内有限次数重试，并在本机保存转发日志。再创建一条每 15 分钟运行的自动任务：
+
+1. “重发消息”动作：最近 24 小时、状态为失败。
+2. “推送通知”动作：使用指向 `/api/v1/devices/heartbeat` 的 `SMS Heartbeat` 通道。
+
+这样网络恢复后最迟约 15 分钟会扫描并补发失败记录。服务端事件 ID 具有幂等性，重复补发不会重复入库。
+
+当前 SEA-AL10 的后台任务已在无人操作时按计划触发；手机可仅通过 Wi-Fi 上传，不再依赖 `adb reverse`。USB 数据连接可以关闭或直接拔线。

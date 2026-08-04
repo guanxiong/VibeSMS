@@ -18,7 +18,7 @@ cp .env.example config/local.env
 ./bin/run-server
 ```
 
-打开 <http://127.0.0.1:8787>。服务健康检查：
+打开 <http://127.0.0.1:8787>，使用 `config/local.env` 中的管理员账号登录。服务健康检查：
 
 ```bash
 curl http://127.0.0.1:8787/api/health
