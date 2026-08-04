@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SMS Gateway MVP</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <main>
+      <header>
+        <div>
+          <p class="eyebrow">ANDROID EDGE · MVP</p>
+          <h1>短信与来电终端</h1>
+          <p class="subtitle">双卡设备事件、在线状态与接收记录</p>
+        </div>
+        <div class="status"><span id="status-dot"></span><span id="status-text">正在连接</span></div>
+      </header>
+
+      <section class="summary" aria-label="概览">
+        <article><span>设备</span><strong id="device-count">0</strong></article>
+        <article><span>短信</span><strong id="sms-count">0</strong></article>
+        <article><span>来电</span><strong id="call-count">0</strong></article>
+        <article><span>心跳</span><strong id="heartbeat-count">0</strong></article>
+      </section>
+
+      <section>
+        <div class="section-title">
+          <div><p class="eyebrow">FLEET</p><h2>终端状态</h2></div>
+          <button id="refresh" type="button">刷新</button>
+        </div>
+        <div id="devices" class="devices"><p class="empty">等待终端上报…</p></div>
+      </section>
+
+      <section>
+        <div class="section-title">
+          <div><p class="eyebrow">INBOX</p><h2>事件记录</h2></div>
+          <div class="filters" role="group" aria-label="事件过滤">
+            <button class="filter active" data-type="">全部</button>
+            <button class="filter" data-type="sms">短信</button>
+            <button class="filter" data-type="call">来电</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>时间</th><th>类型</th><th>SIM</th><th>来源</th><th>内容 / 状态</th><th>设备</th></tr></thead>
+            <tbody id="events"><tr><td colspan="6" class="empty">尚无事件</td></tr></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+    <script src="/app.js" defer></script>
+  </body>
+</html>
+

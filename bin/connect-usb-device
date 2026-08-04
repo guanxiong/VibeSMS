@@ -1,0 +1,8 @@
+#!/bin/sh
+set -eu
+
+PORT=${SMS_GATEWAY_PORT:-8787}
+adb get-state >/dev/null
+adb reverse "tcp:$PORT" "tcp:$PORT"
+echo "Android USB tunnel ready: phone http://127.0.0.1:$PORT -> host http://127.0.0.1:$PORT"
+

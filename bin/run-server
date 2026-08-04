@@ -1,0 +1,13 @@
+#!/bin/sh
+set -eu
+
+PROJECT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+if [ -f "$PROJECT_DIR/config/local.env" ]; then
+  set -a
+  . "$PROJECT_DIR/config/local.env"
+  set +a
+fi
+
+cd "$PROJECT_DIR"
+exec python3 -m server.app
+

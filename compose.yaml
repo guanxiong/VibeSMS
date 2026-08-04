@@ -1,0 +1,17 @@
+services:
+  sms-gateway:
+    build: .
+    restart: unless-stopped
+    environment:
+      GATEWAY_TOKEN: ${GATEWAY_TOKEN:?set GATEWAY_TOKEN in .env}
+      SMS_GATEWAY_HOST: 0.0.0.0
+      SMS_GATEWAY_PORT: 8787
+      SMS_GATEWAY_DB: /data/gateway.db
+    ports:
+      - "8787:8787"
+    volumes:
+      - sms-gateway-data:/data
+
+volumes:
+  sms-gateway-data:
+
