@@ -55,3 +55,6 @@
 - 2026-08-08：公网验收通过：健康检查 200、管理端未认证 401/认证 200、错误设备 Token 401/正确设备 Token 200，历史 12 条事件和 1 台设备迁移完整。
 - 2026-08-08：当前手机未连接 USB 且不在本机局域网，待再次连接后把事件与心跳 Webhook 切换到 `https://sms.shareapi.ai`，MVP-003 暂保持进行中。
 - 2026-08-08：用户确认手机端更新延后执行；公网部署状态和下次连接后的 6 步切换/验收清单已写入 `docs/REAL_DEVICE_ACCEPTANCE.md`，本轮不操作手机。
+- 2026-08-08：产品正式命名为 `VibeSMS`，APK 决定通过 GitHub Releases 分发；无账户 Key 接入设计纳入 MVP-004。
+- 2026-08-08：管理页、服务标识与产品文档已完成 VibeSMS 品牌化并部署到 `sms.shareapi.ai`，公网健康检查返回 `name=VibeSMS`；现有 API、Key、数据库和 Android 响应关键字保持兼容。
+- 2026-08-08：当前仓库尚无 GitHub remote，本机也未安装 Android SDK/Gradle；在建立仓库和签名构建流水线前不发布占位 APK。
