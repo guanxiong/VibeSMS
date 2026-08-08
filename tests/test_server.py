@@ -67,6 +67,11 @@ class GatewayServerTest(unittest.TestCase):
         self.assertIn('href="/admin/"', homepage)
         self.assertIn("VibeSMS-0.1.0.apk", homepage)
         self.assertIn('class="keep-together">“短信列表”，</span>', homepage)
+        self.assertIn("issues/new?template=key-request.yml", homepage)
+        self.assertIn('data-code-tab="python"', homepage)
+        self.assertIn('data-code-tab="skill"', homepage)
+        self.assertIn("npx skills add guanxiong/VibeSMS", homepage)
+        self.assertIn('id="skill"', homepage)
         self.assertNotIn("即将发布", homepage)
 
         with urlopen(self.base_url + "/site/styles.css", timeout=3) as response:

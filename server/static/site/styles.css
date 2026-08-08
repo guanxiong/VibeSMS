@@ -96,9 +96,8 @@ h2 { margin: 0; font-size: clamp(38px, 4.6vw, 64px); line-height: 1.06; letter-s
 .step-number { color: var(--green); font: 700 11px ui-monospace, monospace; }
 .steps h3, .security-lines h3 { margin: 0; font-size: 21px; letter-spacing: -.025em; }
 .steps p, .security-lines p { max-width: 600px; margin: 9px 0 0; color: var(--muted); font-size: 14px; line-height: 1.65; }
-.steps code, .step-state { color: #616862; font: 650 10px ui-monospace, monospace; letter-spacing: .06em; }
-.step-state { padding: 6px 8px; border: 1px solid var(--line); }
-.step-state.ready { border-color: #7a9c86; color: var(--green); }
+.step-action { display: inline-flex; align-items: center; gap: 8px; padding: 8px 0 7px; border-bottom: 1px solid currentColor; color: var(--green); font: 700 11px ui-monospace, monospace; letter-spacing: .04em; text-decoration: none; white-space: nowrap; }
+.step-action:hover { color: var(--ink); }
 
 .api-section { display: grid; grid-template-columns: minmax(340px, .82fr) minmax(500px, 1.18fr); gap: clamp(60px, 8vw, 120px); align-items: center; }
 .api-copy h2 { max-width: 650px; }
@@ -107,13 +106,41 @@ h2 { margin: 0; font-size: clamp(38px, 4.6vw, 64px); line-height: 1.06; letter-s
 .check-list li { position: relative; padding: 12px 0 12px 28px; border-bottom: 1px solid var(--line); color: #404742; font-size: 13px; }
 .check-list li::before { content: "↳"; position: absolute; left: 0; color: var(--green); }
 .code-window { overflow: hidden; border: 1px solid #29332d; background: var(--terminal); color: var(--terminal-text); box-shadow: 14px 16px 0 var(--paper-deep); }
-.code-tabs { display: flex; height: 48px; align-items: end; gap: 26px; padding: 0 24px; border-bottom: 1px solid var(--terminal-line); color: #67756b; font: 700 9px ui-monospace, monospace; letter-spacing: .08em; }
-.code-tabs span { height: 48px; display: flex; align-items: center; }
-.code-tabs .active { border-bottom: 2px solid var(--green-bright); color: var(--green-bright); }
+.code-window-head { display: flex; align-items: center; justify-content: space-between; height: 48px; padding-right: 18px; border-bottom: 1px solid var(--terminal-line); }
+.code-tabs { display: flex; height: 48px; align-items: end; gap: 6px; padding: 0 18px; color: #67756b; font: 700 9px ui-monospace, monospace; letter-spacing: .08em; }
+.code-tabs button { height: 48px; padding: 0 8px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: inherit; font: inherit; letter-spacing: inherit; cursor: pointer; }
+.code-tabs button:hover { color: #b5c1b8; }
+.code-tabs button.active { border-bottom-color: var(--green-bright); color: var(--green-bright); }
+.copy-code { padding: 6px 8px; border: 1px solid #435047; background: transparent; color: #9aa69d; font: 700 9px ui-monospace, monospace; cursor: pointer; }
+.copy-code:hover { border-color: var(--green-bright); color: var(--green-bright); }
 pre { margin: 0; overflow-x: auto; padding: 30px 28px 35px; font: 500 12px/1.85 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.code-panel { min-height: 360px; }
+[hidden] { display: none !important; }
 .code-muted { color: #65736a; }
 .code-string { color: #c6eb9c; }
 .code-key { color: #9ac9e8; }
+
+.skill-section { display: grid; grid-template-columns: minmax(340px, .82fr) minmax(520px, 1.18fr); gap: clamp(60px, 8vw, 120px); align-items: start; }
+.skill-heading > p:not(.section-index) { max-width: 540px; margin: 28px 0 0; color: var(--muted); line-height: 1.75; }
+.skill-links { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 34px; }
+.skill-install-card { overflow: hidden; border: 1px solid #29332d; background: var(--terminal); color: var(--terminal-text); box-shadow: 14px 16px 0 var(--paper-deep); }
+.skill-card-head { display: flex; align-items: center; justify-content: space-between; min-height: 48px; padding: 0 22px; border-bottom: 1px solid var(--terminal-line); color: #89968d; font: 700 9px ui-monospace, monospace; letter-spacing: .08em; text-transform: uppercase; }
+.skill-ready { display: inline-flex; align-items: center; gap: 7px; color: var(--green-bright); }
+.skill-ready i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; box-shadow: 0 0 10px #b9f36a80; }
+.install-label { margin: 28px 28px 12px; color: #849188; font: 700 9px ui-monospace, monospace; letter-spacing: .1em; text-transform: uppercase; }
+.install-command { display: grid; grid-template-columns: minmax(0, 1fr) auto; margin: 0 28px; border: 1px solid #3a473f; background: #0d130f; }
+.install-command code { overflow-x: auto; padding: 15px 16px; color: var(--green-bright); font: 600 11px/1.6 ui-monospace, monospace; white-space: nowrap; }
+.install-command button { border: 0; border-left: 1px solid #3a473f; background: transparent; color: #9aa69d; padding: 0 14px; font: 700 9px ui-monospace, monospace; cursor: pointer; }
+.install-command button:hover { background: #19221c; color: var(--green-bright); }
+.secret-note { margin: 18px 28px 0; color: #95a198; font-size: 12px; line-height: 1.7; }
+.secret-note strong { color: #d9e4dc; }
+.secret-note code { color: var(--green-bright); font-family: ui-monospace, monospace; }
+.agent-prompts { margin-top: 27px; padding: 24px 28px 26px; border-top: 1px solid var(--terminal-line); }
+.agent-prompts p { margin: 0 0 12px; color: #849188; font: 700 9px ui-monospace, monospace; letter-spacing: .08em; text-transform: uppercase; }
+.agent-prompts ul { margin: 0; padding: 0; list-style: none; }
+.agent-prompts li { position: relative; padding: 8px 0 8px 20px; border-bottom: 1px solid #202a23; color: #cbd6ce; font-size: 13px; line-height: 1.6; }
+.agent-prompts li::before { content: ">"; position: absolute; left: 0; color: var(--green-bright); font-family: ui-monospace, monospace; }
+.agent-compatibility { margin: 0; padding: 18px 28px 21px; border-top: 1px solid var(--terminal-line); color: #718077; font: 650 9px/1.7 ui-monospace, monospace; letter-spacing: .04em; }
 
 .security-section { display: grid; grid-template-columns: minmax(340px, .9fr) minmax(480px, 1.1fr); gap: 90px; }
 .security-lines { border-top: 1px solid var(--ink); }
@@ -147,7 +174,7 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--orange); outlin
   .section-intro { grid-template-columns: 1fr; }
   .section-intro > p:last-child { max-width: 620px; }
   .steps { margin-left: 0; }
-  .api-section, .security-section, .project-status { grid-template-columns: 1fr; }
+  .api-section, .skill-section, .security-section, .project-status { grid-template-columns: 1fr; }
   .security-section { gap: 60px; }
 }
 
@@ -176,7 +203,19 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--orange); outlin
   .steps li > :last-child { grid-column: 2; justify-self: start; }
   .api-section { gap: 48px; }
   .code-window { width: 100%; box-shadow: 7px 8px 0 var(--paper-deep); }
+  .code-tabs { gap: 0; padding-inline: 8px; }
+  .code-tabs button { padding-inline: 7px; font-size: 8px; }
+  .copy-code { margin-left: 4px; }
   pre { padding: 24px 18px; font-size: 10px; }
+  .code-panel { min-height: 330px; }
+  .skill-section { gap: 46px; }
+  .skill-links { align-items: stretch; flex-direction: column; }
+  .skill-links .button { width: 100%; }
+  .skill-install-card { box-shadow: 7px 8px 0 var(--paper-deep); }
+  .install-label, .secret-note { margin-inline: 18px; }
+  .install-command { grid-template-columns: 1fr; margin-inline: 18px; }
+  .install-command button { min-height: 40px; border-top: 1px solid #3a473f; border-left: 0; }
+  .agent-prompts, .agent-compatibility { padding-inline: 18px; }
   .closing { margin-top: 70px; padding: 54px 24px; }
   .closing > div { align-items: stretch; flex-direction: column; }
   footer { grid-template-columns: 1fr; gap: 22px; padding: 42px 0; text-align: left; }

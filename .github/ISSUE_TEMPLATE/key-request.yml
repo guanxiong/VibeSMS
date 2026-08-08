@@ -1,0 +1,47 @@
+name: 申请 VibeSMS Key
+description: 申请一个用于 Android 终端与 Agent 接码的内测 Key
+title: "[Key Request] "
+labels:
+  - key-request
+body:
+  - type: markdown
+    attributes:
+      value: |
+        VibeSMS 当前不要求注册新账户，Key 由管理员手工签发。
+
+        这是公开 Issue。请勿填写手机号、短信内容、验证码、现有 Key、设备 Token 或其他个人信息。管理员会在 Issue 中确认申请并说明安全交付方式，Key 不会公开发送。
+  - type: dropdown
+    id: use-case
+    attributes:
+      label: 使用场景
+      options:
+        - Agent 注册外部平台时接收验证码
+        - Agent 读取业务短信
+        - Agent 读取来电记录
+        - 自部署 VibeSMS 测试
+        - 其他
+    validations:
+      required: true
+  - type: dropdown
+    id: devices
+    attributes:
+      label: 计划接入的 Android 设备数量
+      options:
+        - 1 台
+        - 2–5 台
+        - 6 台以上
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: 补充说明
+      description: 只描述用途和规模，不要填写任何号码、凭据或短信内容。
+      placeholder: 例如：个人 Agent 测试，使用一台双卡 Android 手机。
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: 安全确认
+      options:
+        - label: 我不会在公开 Issue 中提交手机号、验证码、Key 或设备 Token。
+          required: true

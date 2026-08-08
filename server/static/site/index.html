@@ -27,6 +27,7 @@
       <nav aria-label="主导航">
         <a href="#workflow">工作方式</a>
         <a href="#api">Agent API</a>
+        <a href="#skill">Agent Skill</a>
         <a href="#security">安全</a>
         <a href="https://github.com/guanxiong/VibeSMS">GitHub</a>
       </nav>
@@ -40,7 +41,7 @@
           <h1>让你的 Agent，<br>安全接收手机短信。</h1>
           <p class="lede">把一台 Android 手机变成可靠的短信与来电终端。一个 Key 绑定一个号码，Agent 只读取属于它的事件。</p>
           <div class="hero-actions">
-            <a class="button primary" href="https://github.com/guanxiong/VibeSMS">查看 GitHub <span aria-hidden="true">↗</span></a>
+            <a class="button primary" href="https://github.com/guanxiong/VibeSMS/issues/new?template=key-request.yml">申请 Key <span aria-hidden="true">↗</span></a>
             <a class="button secondary" href="https://github.com/guanxiong/VibeSMS/releases/latest/download/VibeSMS-0.1.0.apk">下载 Android APK <span class="release-badge">v0.1.0</span></a>
           </div>
           <dl class="hero-facts">
@@ -87,17 +88,17 @@
           <li>
             <span class="step-number">01</span>
             <div><h3>申请 Key</h3><p>一个 Key 默认对应一个手机号，可随时轮换、禁用或重新绑定。</p></div>
-            <code>sms_live_••••••••</code>
+            <a class="step-action" href="https://github.com/guanxiong/VibeSMS/issues/new?template=key-request.yml">提交申请 <span aria-hidden="true">↗</span></a>
           </li>
           <li>
             <span class="step-number">02</span>
             <div><h3>连接 Android</h3><p>安装 VibeSMS Terminal，输入 Key、选择 SIM，离线事件会在网络恢复后补发。</p></div>
-            <span class="step-state ready">APK · v0.1.0</span>
+            <a class="step-action" href="https://github.com/guanxiong/VibeSMS/releases/latest/download/VibeSMS-0.1.0.apk">下载 APK <span aria-hidden="true">↓</span></a>
           </li>
           <li>
             <span class="step-number">03</span>
             <div><h3>配置 Agent Skill</h3><p>Key 放入 Secret，Agent 即可等待新短信、提取验证码或读取来电状态。</p></div>
-            <span class="step-state ready">API READY</span>
+            <a class="step-action" href="#skill">安装 Skill <span aria-hidden="true">↓</span></a>
           </li>
         </ol>
       </section>
@@ -115,8 +116,15 @@
           </ul>
         </div>
         <div class="code-window">
-          <div class="code-tabs"><span class="active">cURL</span><span>Python</span><span>MCP</span></div>
-          <pre><code><span class="code-muted"># Wait for the next OTP</span>
+          <div class="code-window-head">
+            <div class="code-tabs" role="tablist" aria-label="Agent API 示例">
+              <button id="tab-curl" class="active" type="button" role="tab" aria-selected="true" aria-controls="code-curl" data-code-tab="curl">cURL</button>
+              <button id="tab-python" type="button" role="tab" aria-selected="false" aria-controls="code-python" data-code-tab="python" tabindex="-1">Python</button>
+              <button id="tab-skill" type="button" role="tab" aria-selected="false" aria-controls="code-skill" data-code-tab="skill" tabindex="-1">Agent Skill</button>
+            </div>
+            <button class="copy-code" type="button" data-copy-code>复制</button>
+          </div>
+          <pre id="code-curl" class="code-panel" role="tabpanel" aria-labelledby="tab-curl" data-code-panel="curl"><code><span class="code-muted"># Wait for the next OTP</span>
 curl --get <span class="code-string">https://sms.shareapi.ai/api/v1/otp/wait</span>
   --header <span class="code-string">"Authorization: Bearer $VIBESMS_KEY"</span>
   --data-urlencode <span class="code-string">"after_id=128"</span>
@@ -128,12 +136,60 @@ curl --get <span class="code-string">https://sms.shareapi.ai/api/v1/otp/wait</sp
   <span class="code-key">"code"</span>: <span class="code-string">"472913"</span>,
   <span class="code-key">"sender"</span>: <span class="code-string">"Example"</span>
 }</code></pre>
+          <pre id="code-python" class="code-panel" role="tabpanel" aria-labelledby="tab-python" data-code-panel="python" hidden><code><span class="code-muted"># The bundled client has no dependencies</span>
+export VIBESMS_KEY=<span class="code-string">"vbs_live_..."</span>
+
+python3 skills/vibesms/scripts/vibesms.py status
+python3 skills/vibesms/scripts/vibesms.py wait-otp \
+  --after-id 128 \
+  --timeout 60</code></pre>
+          <pre id="code-skill" class="code-panel" role="tabpanel" aria-labelledby="tab-skill" data-code-panel="skill" hidden><code><span class="code-muted"># Install for Codex, Claude Code, Cursor and more</span>
+npx skills add guanxiong/VibeSMS \
+  --skill vibesms \
+  --global \
+  --yes
+
+<span class="code-muted"># Then ask your agent</span>
+“记录当前游标，然后等待下一条验证码。”</code></pre>
+        </div>
+      </section>
+
+      <section id="skill" class="section skill-section">
+        <div class="skill-heading">
+          <p class="section-index">03 / AGENT SKILL</p>
+          <h2>给 Agent 一项真正可执行的<span class="keep-together">接码能力。</span></h2>
+          <p>VibeSMS Skill 会先记录事件游标，再等待任务开始后的新短信，避免把历史验证码误当成当前结果。</p>
+          <div class="skill-links">
+            <a class="button primary" href="https://github.com/guanxiong/VibeSMS/tree/main/skills/vibesms">查看 Skill 源码 <span aria-hidden="true">↗</span></a>
+            <a class="button secondary" href="https://skills.sh/guanxiong/VibeSMS/vibesms">在 Skills.sh 查看 <span aria-hidden="true">↗</span></a>
+          </div>
+        </div>
+        <div class="skill-install-card">
+          <div class="skill-card-head">
+            <span>vibesms / agent skill</span>
+            <span class="skill-ready"><i></i> READY</span>
+          </div>
+          <p class="install-label">一条命令安装</p>
+          <div class="install-command">
+            <code>npx skills add guanxiong/VibeSMS --skill vibesms -g -y</code>
+            <button type="button" data-copy-install>复制命令</button>
+          </div>
+          <p class="secret-note"><strong>Secret：</strong>把 Key 保存为 <code>VIBESMS_KEY</code>，不要放进提示词、源码或聊天记录。</p>
+          <div class="agent-prompts">
+            <p>安装后可以直接对 Agent 说：</p>
+            <ul>
+              <li>“检查我的 VibeSMS 终端是否在线。”</li>
+              <li>“先记录游标，然后等待下一条验证码。”</li>
+              <li>“读取这个 Key 最近的来电记录。”</li>
+            </ul>
+          </div>
+          <p class="agent-compatibility">Codex · Claude Code · Cursor · GitHub Copilot · OpenCode · 其他 Agent Skills 客户端</p>
         </div>
       </section>
 
       <section id="security" class="section security-section">
         <div class="security-heading">
-          <p class="section-index">03 / SECURITY MODEL</p>
+          <p class="section-index">04 / SECURITY MODEL</p>
           <h2>一个简单的 Key，<br>三条明确的安全边界。</h2>
         </div>
         <div class="security-lines">
@@ -145,7 +201,7 @@ curl --get <span class="code-string">https://sms.shareapi.ai/api/v1/otp/wait</sp
 
       <section class="section project-status">
         <div>
-          <p class="section-index">04 / PROJECT STATUS</p>
+          <p class="section-index">05 / PROJECT STATUS</p>
           <h2>从手机到 Agent，<br>完整链路已经可用。</h2>
         </div>
         <div class="status-list">
