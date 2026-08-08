@@ -1,0 +1,23 @@
+services:
+  sms-gateway:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: sms-gateway
+    restart: unless-stopped
+    env_file:
+      - ../config/local.env
+    environment:
+      SMS_GATEWAY_HOST: 0.0.0.0
+      SMS_GATEWAY_PORT: 8787
+      SMS_GATEWAY_DB: /data/gateway.db
+    ports:
+      - "127.0.0.1:8787:8787"
+    volumes:
+      - ../data:/data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8787/api/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
