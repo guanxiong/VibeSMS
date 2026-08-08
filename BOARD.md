@@ -7,6 +7,7 @@
 | MVP-001 | Critical | 实现单台双卡 Android 的短信与来电事件采集、上传、持久化和管理页面 | Codex | root-20260804-mvp1 | APPROVED |
 | MVP-002 | High | 使用运营商真实短信和来电完成最终端到端验收 | User + Codex | root-20260804-mvp1 | APPROVED |
 | MVP-003 | Medium | 补充断网恢复后的自动补发、主动设备心跳、设备独立密钥、管理端认证与 HTTPS 公网部署 | Codex | root-20260804-mvp3 | IN PROGRESS |
+| MVP-004 | High | 将项目品牌化为 VibeSMS，实现无账户 Key 接入、Android Terminal 和 Agent Skill | - | - | PENDING |
 
 ## MVP-001 Acceptance Criteria
 
@@ -25,6 +26,16 @@
 - 管理页面和查询/设备管理 API 必须经过管理员认证。
 - 提供不直接暴露应用端口的 Caddy HTTPS 公网部署配置。
 - 当前 Android 切换到非 USB 地址，移除 `adb reverse` 后仍可上传事件和心跳。
+
+## MVP-004 Acceptance Criteria
+
+- 产品名称统一为 `VibeSMS`，云端入口保持 `sms.shareapi.ai`。
+- 管理员可手工签发、轮换、禁用一个手机号对应的用户 Key。
+- Android Terminal 通过用户 Key 首次绑定 SIM，换取仅具上传权限的设备凭据。
+- Agent 使用用户 Key 隔离读取对应号码的短信与来电记录，并支持长轮询等待验证码。
+- 提供可安装的 VibeSMS Skill，Key 仅从环境变量或 Secret 配置读取。
+- Android APK 使用签名构建，并通过 GitHub Releases 提供校验值和下载。
+- 不引入独立用户账户体系，预留 `owner_ref` 供后续与 `llm.shareapi.ai`、`panel.shareapi.ai` 统一身份。
 
 ## Review Notes
 
