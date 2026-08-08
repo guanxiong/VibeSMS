@@ -46,7 +46,7 @@ h1 { margin: 0; max-width: 700px; font-size: clamp(52px, 6.4vw, 88px); line-heig
 .button.primary { background: var(--ink); color: white; }
 .button.primary:hover { background: var(--green); border-color: var(--green); }
 .button.secondary { background: transparent; }
-.soon { padding: 3px 6px; background: var(--paper-deep); color: var(--muted); font: 700 9px ui-monospace, monospace; letter-spacing: .08em; }
+.release-badge { padding: 3px 6px; background: var(--green-bright); color: var(--ink); font: 700 9px ui-monospace, monospace; letter-spacing: .08em; }
 .hero-facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin: 42px 0 0; padding-top: 20px; border-top: 1px solid var(--line); }
 .hero-facts div { min-width: 0; }
 .hero-facts dt { color: #787f79; font: 650 10px ui-monospace, monospace; letter-spacing: .08em; text-transform: uppercase; }

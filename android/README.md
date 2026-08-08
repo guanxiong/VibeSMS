@@ -22,7 +22,7 @@ cd android
 ./gradlew :app:lintRelease :app:assembleDebug
 ```
 
-Pull requests and pushes to `main` run the same checks in GitHub Actions. Version tags matching `v*` produce a signed APK and `SHA256SUMS` in GitHub Releases. Release signing values are injected through GitHub Actions secrets and are not stored in the repository.
+Pull requests and pushes to `main` run the same checks in GitHub Actions. Version tags matching `v*` produce an unsigned release candidate plus the official Android signing tool as a short-lived Actions artifact. A maintainer signs the candidate locally and publishes the signed APK with `SHA256SUMS` in GitHub Releases, so the private release key never leaves the maintainer machine.
 
 ## First connection
 

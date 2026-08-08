@@ -35,4 +35,15 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
       - name: Validate and build
-        run: ./gradlew --no-daemon :app:lintRelease :app:assembleDebug
+        run: |
+          ./gradlew --no-daemon :app:lintRelease :app:assembleRelease
+          cp "$ANDROID_HOME/build-tools/36.0.0/lib/apksigner.jar" app/build/outputs/apk/release/apksigner.jar
+      - name: Upload unsigned release candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: vibesms-unsigned-${{ github.sha }}
+          if-no-files-found: error
+          retention-days: 7
+          path: |
+            android/app/build/outputs/apk/release/app-release-unsigned.apk
+            android/app/build/outputs/apk/release/apksigner.jar
