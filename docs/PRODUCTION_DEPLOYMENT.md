@@ -1,5 +1,25 @@
 # 生产部署与多设备接入
 
+## 当前生产实例
+
+- 域名：`https://sms.shareapi.ai`
+- 主机：Obsidian Infra 中的 `us`（DediOne LAX，`5.253.38.114`）
+- 应用目录：`/opt/sms-gateway`
+- 容器：`sms-gateway`，仅绑定 `127.0.0.1:8787`
+- 反向代理：现有 1Panel OpenResty，配置 `/opt/1panel/www/conf.d/sms.shareapi.ai.conf`
+- 证书：acme.sh + Namecheap DNS-01，自动续期并 reload OpenResty
+- 数据：`/opt/sms-gateway/data/gateway.db`
+- 备份：每天 UTC 03:17 生成 SQLite 在线备份，保留 30 天
+
+常用操作：
+
+```bash
+ssh us 'cd /opt/sms-gateway && docker compose -f deploy/compose.openresty.yaml ps'
+ssh us 'cd /opt/sms-gateway && docker compose -f deploy/compose.openresty.yaml logs --tail 100'
+ssh us '/opt/sms-gateway/deploy/backup.sh'
+curl https://sms.shareapi.ai/api/health
+```
+
 ## HTTPS 部署
 
 准备一台具有公网 IP 的 Linux 主机，并将域名的 A/AAAA 记录指向该主机。开放 TCP 80、TCP 443 和 UDP 443，然后执行：
@@ -41,8 +61,10 @@ http://192.168.1.20:8787/api/v1/events
 正式环境改为：
 
 ```text
-https://sms.example.com/api/v1/events
+https://sms.shareapi.ai/api/v1/events
 ```
+
+心跳地址为 `https://sms.shareapi.ai/api/v1/devices/heartbeat`。
 
 配置成功后移除 `adb reverse`，再次执行发送通道测试。收到 `SMS_MVP_OK` 即证明链路不再依赖 USB。
 

@@ -1,0 +1,1 @@
+17 3 * * * root /opt/sms-gateway/deploy/backup.sh >> /var/log/sms-gateway-backup.log 2>&1
