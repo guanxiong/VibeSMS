@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="VibeSMS 把你自己的 Android 手机和 SIM 变成 Agent 可调用的短信与来电网关。">
+    <meta name="theme-color" content="#f3f1e9">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://sms.shareapi.ai/">
+    <meta property="og:title" content="VibeSMS — Your phone number, available to your agent">
+    <meta property="og:description" content="把你自己的 Android 手机和 SIM 变成 Agent 可调用的短信与来电网关。">
+    <meta property="og:image" content="https://sms.shareapi.ai/site/og-vibesms.jpg">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta name="twitter:card" content="summary_large_image">
+    <title>VibeSMS — Your phone number, available to your agent</title>
+    <link rel="stylesheet" href="/site/styles.css">
+  </head>
+  <body>
+    <a class="skip-link" href="#main">跳到主要内容</a>
+
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="VibeSMS 首页">
+        <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span>VibeSMS</span>
+      </a>
+      <nav aria-label="主导航">
+        <a href="#workflow">工作方式</a>
+        <a href="#api">Agent API</a>
+        <a href="#security">安全</a>
+        <a href="https://github.com/guanxiong/VibeSMS">GitHub</a>
+      </nav>
+      <a class="console-link" href="/admin/">管理控制台 <span aria-hidden="true">↗</span></a>
+    </header>
+
+    <main id="main">
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="kicker"><span></span> OPEN SOURCE · BRING YOUR OWN SIM</p>
+          <h1>让你的 Agent，<br>安全接收手机短信。</h1>
+          <p class="lede">把一台 Android 手机变成可靠的短信与来电终端。一个 Key 绑定一个号码，Agent 只读取属于它的事件。</p>
+          <div class="hero-actions">
+            <a class="button primary" href="https://github.com/guanxiong/VibeSMS">查看 GitHub <span aria-hidden="true">↗</span></a>
+            <a class="button secondary" href="https://github.com/guanxiong/VibeSMS/releases">Android APK <span class="soon">即将发布</span></a>
+          </div>
+          <dl class="hero-facts">
+            <div><dt>Cloud API</dt><dd>sms.shareapi.ai</dd></div>
+            <div><dt>Terminal</dt><dd>Android 10+</dd></div>
+            <div><dt>Identity</dt><dd>Key-scoped</dd></div>
+          </dl>
+        </div>
+
+        <div class="product-scene" aria-label="VibeSMS Agent 接码示例">
+          <div class="scene-head">
+            <div class="scene-dots" aria-hidden="true"><i></i><i></i><i></i></div>
+            <span>agent-session.log</span>
+            <span id="cloud-status" class="cloud-status"><i></i> 正在检查服务</span>
+          </div>
+          <div class="terminal-line muted"><span>01</span><code>$ vibesms wait --type otp --timeout 60</code></div>
+          <div class="terminal-line"><span>02</span><code>connected  SEA-AL10-01 · SIM 1</code></div>
+          <div class="terminal-line"><span>03</span><code>watching   +86 138••••1234</code></div>
+          <div class="terminal-line blank"><span>04</span><code></code></div>
+          <div class="message-event">
+            <div class="event-meta"><span>SMS RECEIVED</span><time>2.4s</time></div>
+            <p>Example</p>
+            <strong>Your verification code is <mark>472 913</mark></strong>
+          </div>
+          <div class="terminal-line success"><span>09</span><code>✓ code extracted · event acknowledged</code></div>
+          <div class="phone-chip">
+            <div class="phone-icon" aria-hidden="true"><i></i></div>
+            <div><span>ANDROID TERMINAL</span><strong>Online · Wi-Fi · 86%</strong></div>
+          </div>
+        </div>
+      </section>
+
+      <div class="capability-rail" aria-label="核心能力">
+        <span>SELF-HOSTED</span><i></i><span>DUAL-SIM</span><i></i><span>OFFLINE QUEUE</span><i></i><span>KEY ISOLATION</span><i></i><span>AGENT READY</span>
+      </div>
+
+      <section id="workflow" class="section workflow">
+        <div class="section-intro">
+          <p class="section-index">01 / HOW IT WORKS</p>
+          <h2>三步，把你的号码交给 Agent。</h2>
+          <p>没有新的账户体系。管理员签发 Key，Android 首次绑定后换取独立设备凭据。</p>
+        </div>
+        <ol class="steps">
+          <li>
+            <span class="step-number">01</span>
+            <div><h3>申请 Key</h3><p>一个 Key 默认对应一个手机号，可随时轮换、禁用或重新绑定。</p></div>
+            <code>sms_live_••••••••</code>
+          </li>
+          <li>
+            <span class="step-number">02</span>
+            <div><h3>连接 Android</h3><p>安装 VibeSMS Terminal，输入 Key、选择 SIM，离线事件会在网络恢复后补发。</p></div>
+            <span class="step-state">APK · MVP-004</span>
+          </li>
+          <li>
+            <span class="step-number">03</span>
+            <div><h3>配置 Agent Skill</h3><p>Key 放入 Secret，Agent 即可等待新短信、提取验证码或读取来电状态。</p></div>
+            <span class="step-state">API DESIGN</span>
+          </li>
+        </ol>
+      </section>
+
+      <section id="api" class="section api-section">
+        <div class="api-copy">
+          <p class="section-index">02 / PLANNED AGENT API</p>
+          <h2>不是一个“短信列表”，<br>而是一条清晰的接码会话。</h2>
+          <p>MVP-004 将用游标确保 Agent 只处理任务开始后到达的新事件。每次读取受 Key 隔离，并保留最小审计记录。</p>
+          <ul class="check-list">
+            <li>长轮询等待，无需高频请求</li>
+            <li>短信、来电和心跳统一事件模型</li>
+            <li>4–8 位验证码自动提取</li>
+            <li>设备上传凭据与 Agent Key 分离</li>
+          </ul>
+        </div>
+        <div class="code-window">
+          <div class="code-tabs"><span class="active">cURL</span><span>Python</span><span>MCP</span></div>
+          <pre><code><span class="code-muted"># Wait for the next OTP</span>
+curl --get <span class="code-string">https://sms.shareapi.ai/api/v1/otp/wait</span>
+  --header <span class="code-string">"Authorization: Bearer $VIBESMS_KEY"</span>
+  --data-urlencode <span class="code-string">"after_id=128"</span>
+  --data-urlencode <span class="code-string">"timeout=60"</span>
+
+<span class="code-muted"># Response</span>
+{
+  <span class="code-key">"status"</span>: <span class="code-string">"received"</span>,
+  <span class="code-key">"code"</span>: <span class="code-string">"472913"</span>,
+  <span class="code-key">"sender"</span>: <span class="code-string">"Example"</span>
+}</code></pre>
+        </div>
+      </section>
+
+      <section id="security" class="section security-section">
+        <div class="security-heading">
+          <p class="section-index">03 / TARGET SECURITY MODEL</p>
+          <h2>一个简单的 Key，<br>三条明确的安全边界。</h2>
+        </div>
+        <div class="security-lines">
+          <article><span>01</span><div><h3>Key 只显示一次</h3><p>现有设备凭据已仅保存 SHA-256 哈希；用户 Key 将沿用同一原则并支持轮换。</p></div></article>
+          <article><span>02</span><div><h3>设备只能上传</h3><p>当前设备凭据已按设备隔离；专用 APK 将通过首次绑定换取仅上传凭据。</p></div></article>
+          <article><span>03</span><div><h3>Agent 只能读自己的号码</h3><p>MVP-004 将在 Key 与手机号绑定后，于查询和数据访问两层拒绝跨 Key 读取。</p></div></article>
+        </div>
+      </section>
+
+      <section class="section project-status">
+        <div>
+          <p class="section-index">04 / PROJECT STATUS</p>
+          <h2>基础设施已经在线，<br>Terminal 与 Skill 正在构建。</h2>
+        </div>
+        <div class="status-list">
+          <p><span class="done">DONE</span> 公网 HTTPS、设备心跳、断网补发</p>
+          <p><span class="done">DONE</span> 独立设备密钥与管理认证</p>
+          <p><span class="active">BUILDING</span> VibeSMS Android Terminal</p>
+          <p><span>NEXT</span> Key Inbox API 与 Agent Skill</p>
+        </div>
+      </section>
+
+      <section class="closing">
+        <p class="section-index">VIBESMS · PUBLIC MVP</p>
+        <h2>Your phone number.<br>Your agent. Your control.</h2>
+        <div>
+          <a class="button inverted" href="https://github.com/guanxiong/VibeSMS">Star on GitHub <span aria-hidden="true">↗</span></a>
+          <a class="text-link" href="/admin/">进入管理控制台</a>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <a class="brand footer-brand" href="/"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span><span>VibeSMS</span></a>
+      <p>Android SMS infrastructure for agents.</p>
+      <div><a href="https://github.com/guanxiong/VibeSMS">GitHub</a><a href="https://github.com/guanxiong/VibeSMS/blob/main/SECURITY.md">Security</a><a href="/admin/">Console</a></div>
+    </footer>
+
+    <script src="/site/app.js" defer></script>
+  </body>
+</html>

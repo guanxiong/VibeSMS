@@ -27,7 +27,7 @@ cp .env.example config/local.env
 ./bin/run-server
 ```
 
-打开 <http://127.0.0.1:8787>，使用 `config/local.env` 中的管理员账号登录。服务健康检查：
+打开 <http://127.0.0.1:8787> 查看公开项目主页；管理控制台位于 <http://127.0.0.1:8787/admin/>，使用 `config/local.env` 中的管理员账号登录。服务健康检查：
 
 ```bash
 curl http://127.0.0.1:8787/api/health
@@ -52,6 +52,20 @@ docker compose up -d --build
 ```
 
 Compose 会使用 Caddy 自动提供 HTTPS，并且不直接暴露应用的 `8787` 端口。管理页面会弹出 Basic Auth 登录框。
+
+## 仓库结构
+
+```text
+server/              HTTP API、SQLite 存储与 Web 资源
+  static/site/       公开项目主页
+  static/admin/      需认证的管理控制台
+deploy/              HTTPS、反向代理、备份与 DNS 运维配置
+bin/                 本地启动、设备接入和凭据签发脚本
+docs/                产品、部署、Android 配置与验收文档
+tests/               服务端与访问边界自动化测试
+```
+
+运行时的 `config/local.env`、`data/` 与测试 APK 均被 Git 忽略，不进入公开仓库。
 
 ## API
 

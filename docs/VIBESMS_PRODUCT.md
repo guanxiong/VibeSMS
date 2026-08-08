@@ -44,3 +44,16 @@ VibeSMS 不提供公共共享号码池，不面向绕过第三方平台风控或
 - 签名密钥只存于 GitHub Actions Secrets，不进入仓库。
 - Release 同时发布 APK、版本说明和 `SHA256SUMS`。
 - Android App 内展示版本、API 域名、绑定号码和最后上传状态。
+
+## MVP-004 目标目录
+
+新增实现按产品边界进入独立目录，避免把移动端、Agent 端和服务端混在一起：
+
+```text
+android/                     VibeSMS Terminal 原生 Android 工程
+skills/vibesms/              可安装的 Agent Skill
+.github/workflows/           Android 校验、签名与 Release 流水线
+server/                      Key、绑定、Inbox 与现有设备上传 API
+```
+
+在对应实现开始前不创建空模块或占位 APK；每个目录随首个可测试的纵向功能切片一并加入仓库。

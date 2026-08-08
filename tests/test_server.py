@@ -47,19 +47,47 @@ class GatewayServerTest(unittest.TestCase):
         with urlopen(request, timeout=3) as response:
             return response.status, json.loads(response.read().decode("utf-8"))
 
-    def test_health_and_dashboard(self):
+    def test_health_and_public_homepage(self):
         status, payload = self.request("/api/health")
         self.assertEqual(status, 200)
         self.assertTrue(payload["ok"])
         self.assertEqual(payload["name"], "VibeSMS")
+
+        with urlopen(self.base_url + "/", timeout=3) as response:
+            self.assertEqual(response.status, 200)
+            homepage = response.read().decode("utf-8")
+        self.assertIn("让你的 Agent", homepage)
+        self.assertIn('href="/admin/"', homepage)
+
+        with urlopen(self.base_url + "/site/styles.css", timeout=3) as response:
+            self.assertEqual(response.status, 200)
+            self.assertIn(".hero", response.read().decode("utf-8"))
+
+        with urlopen(self.base_url + "/site/og-vibesms.jpg", timeout=3) as response:
+            self.assertEqual(response.status, 200)
+            self.assertEqual(response.headers.get_content_type(), "image/jpeg")
+            self.assertGreater(len(response.read()), 1000)
+
+    def test_admin_dashboard_requires_auth(self):
         with self.assertRaises(HTTPError) as raised:
-            urlopen(self.base_url + "/", timeout=3)
+            urlopen(self.base_url + "/admin/", timeout=3)
         self.assertEqual(raised.exception.code, 401)
         credentials = base64.b64encode(b"admin:admin-password").decode("ascii")
-        request = Request(self.base_url + "/", headers={"Authorization": "Basic " + credentials})
+        request = Request(
+            self.base_url + "/admin/", headers={"Authorization": "Basic " + credentials}
+        )
         with urlopen(request, timeout=3) as response:
             self.assertEqual(response.status, 200)
             self.assertIn("VibeSMS", response.read().decode("utf-8"))
+
+        with self.assertRaises(HTTPError) as raised:
+            urlopen(self.base_url + "/admin/app.js", timeout=3)
+        self.assertEqual(raised.exception.code, 401)
+
+    def test_unknown_public_path_is_not_an_auth_prompt(self):
+        with self.assertRaises(HTTPError) as raised:
+            urlopen(self.base_url + "/missing", timeout=3)
+        self.assertEqual(raised.exception.code, 404)
 
     def test_rejects_unauthorized_upload(self):
         with self.assertRaises(HTTPError) as raised:

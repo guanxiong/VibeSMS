@@ -547,7 +547,16 @@ class GatewayRequestHandler(BaseHTTPRequestHandler):
                 {"ok": True, "name": PRODUCT_NAME, "version": VERSION, **self.gateway_server.store.stats()},
             )
             return
-        if not self._admin_authorized():
+
+        if self._serve_static(path, public=True):
+            return
+
+        protected_path = (
+            path.startswith("/api/v1/")
+            or path in {"/admin", "/admin/"}
+            or path.startswith("/admin/")
+        )
+        if protected_path and not self._admin_authorized():
             self._admin_unauthorized()
             return
         if path == "/api/v1/events":
@@ -578,18 +587,29 @@ class GatewayRequestHandler(BaseHTTPRequestHandler):
                 {"ok": True, "credentials": self.gateway_server.store.list_device_credentials()},
             )
             return
-        self._serve_static(path)
+        if self._serve_static(path, public=False):
+            return
+        self._json(HTTPStatus.NOT_FOUND, {"ok": False, "error": "not found"})
 
-    def _serve_static(self, request_path: str) -> None:
-        names = {
-            "/": ("index.html", "text/html; charset=utf-8"),
-            "/app.js": ("app.js", "text/javascript; charset=utf-8"),
-            "/styles.css": ("styles.css", "text/css; charset=utf-8"),
-        }
+    def _serve_static(self, request_path: str, public: bool) -> bool:
+        names = (
+            {
+                "/": ("site/index.html", "text/html; charset=utf-8"),
+                "/site/app.js": ("site/app.js", "text/javascript; charset=utf-8"),
+                "/site/styles.css": ("site/styles.css", "text/css; charset=utf-8"),
+                "/site/og-vibesms.jpg": ("site/og-vibesms.jpg", "image/jpeg"),
+            }
+            if public
+            else {
+                "/admin": ("admin/index.html", "text/html; charset=utf-8"),
+                "/admin/": ("admin/index.html", "text/html; charset=utf-8"),
+                "/admin/app.js": ("admin/app.js", "text/javascript; charset=utf-8"),
+                "/admin/styles.css": ("admin/styles.css", "text/css; charset=utf-8"),
+            }
+        )
         item = names.get(request_path)
         if not item:
-            self._json(HTTPStatus.NOT_FOUND, {"ok": False, "error": "not found"})
-            return
+            return False
         file_name, content_type = item
         body = (STATIC_DIR / file_name).read_bytes()
         self.send_response(HTTPStatus.OK)
@@ -598,6 +618,7 @@ class GatewayRequestHandler(BaseHTTPRequestHandler):
         self._security_headers()
         self.end_headers()
         self.wfile.write(body)
+        return True
 
 
 class GatewayHTTPServer(ThreadingHTTPServer):

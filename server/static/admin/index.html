@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>VibeSMS</title>
-    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/admin/styles.css">
   </head>
   <body>
     <main>
@@ -14,7 +14,10 @@
           <h1>VibeSMS</h1>
           <p class="subtitle">双卡短信与来电终端、在线状态和接收记录</p>
         </div>
-        <div class="status"><span id="status-dot"></span><span id="status-text">正在连接</span></div>
+        <div class="header-actions">
+          <a class="home-link" href="/">项目主页</a>
+          <div class="status"><span id="status-dot"></span><span id="status-text">正在连接</span></div>
+        </div>
       </header>
 
       <section class="summary" aria-label="概览">
@@ -49,6 +52,6 @@
         </div>
       </section>
     </main>
-    <script src="/app.js" defer></script>
+    <script src="/admin/app.js" defer></script>
   </body>
 </html>
