@@ -7,7 +7,7 @@
 | MVP-001 | Critical | 实现单台双卡 Android 的短信与来电事件采集、上传、持久化和管理页面 | Codex | root-20260804-mvp1 | APPROVED |
 | MVP-002 | High | 使用运营商真实短信和来电完成最终端到端验收 | User + Codex | root-20260804-mvp1 | APPROVED |
 | MVP-003 | Medium | 补充断网恢复后的自动补发、主动设备心跳、设备独立密钥、管理端认证与 HTTPS 公网部署 | Codex | root-20260804-mvp3 | IN PROGRESS |
-| MVP-004 | High | 将项目品牌化为 VibeSMS，实现无账户 Key 接入、Android Terminal 和 Agent Skill | Codex | root-20260808-mvp4 | IN PROGRESS |
+| MVP-004 | High | 将项目品牌化为 VibeSMS，实现无账户 Key 接入、Android Terminal 和 Agent Skill | Codex | root-20260808-mvp4 | READY FOR REVIEW |
 
 ## MVP-001 Acceptance Criteria
 
@@ -63,3 +63,7 @@
 - 2026-08-08：成熟项目主页已部署到 `sms.shareapi.ai`；生产验收为首页/样式/分享图 200、管理台未认证 401/认证 200，容器健康且原有 1 台设备与 12 条事件完整保留。
 - 2026-08-08：MVP-004 服务端纵向切片完成：用户 Key 签发/轮换/禁用/解绑、首次设备与 SIM 绑定、上传凭据交换、隔离 Inbox、状态游标、OTP 长轮询和 VibeSMS Skill；17 项自动化测试通过。
 - 2026-08-08：VibeSMS 0.3.0 已部署生产，迁移前备份为 `gateway-20260808T042127Z.db`；生产验收确认 user_keys 表、Key 管理 UI、管理员/Agent 认证边界与 Agent API 正常，原 12 条事件和 1 台设备完整保留。
+- 2026-08-08：VibeSMS Android Terminal 原生工程完成，覆盖双卡短信、来电状态、SQLite 离线队列、指数退避补发、15 分钟心跳、Android Keystore 设备凭据与 Key 首次绑定；Android CI 的 API 36 Release 编译及 lint 全部通过。
+- 2026-08-08：签名 APK `VibeSMS-0.1.0.apk` 已发布至 GitHub Release `v0.1.0`，随附 `SHA256SUMS`；线上回下载 SHA-256 为 `13346cd206c68c96454622f5e9513b9b0c394ef595fc8e4677c4724975b96813`，APK Signature Scheme v3 与 4096-bit RSA 发布证书复核通过。发布私钥仅保存在维护者机器，未上传 GitHub。
+- 2026-08-08：VibeSMS 0.4.0 已部署生产，部署前在线备份为 `gateway-20260808T083043Z.db`；公网健康检查、首页 APK 直链、管理端 401 边界和原 1 台设备/12 条事件均验收通过，首页不再包含“即将发布”。
+- 2026-08-08：MVP-004 进入 READY FOR REVIEW；当前手机未连接，v0.1.0 APK 的真机安装、SIM 绑定和运营商短信/来电回归并入下次 MVP-003 手机切换验收。

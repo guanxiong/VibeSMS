@@ -10,7 +10,7 @@
 - 证书：acme.sh + Namecheap DNS-01，自动续期并 reload OpenResty
 - 数据：`/opt/sms-gateway/data/gateway.db`
 - 备份：每天 UTC 03:17 生成 SQLite 在线备份，保留 30 天
-- 当前版本：`0.3.0`，已启用用户 Key、Android 绑定、Agent Inbox/OTP API
+- 当前版本：`0.4.0`，已启用用户 Key、Android 绑定、Agent Inbox/OTP API，并提供 VibeSMS Terminal v0.1.0 APK
 
 常用操作：
 
@@ -20,6 +20,14 @@ ssh us 'cd /opt/sms-gateway && docker compose -f deploy/compose.openresty.yaml l
 ssh us '/opt/sms-gateway/deploy/backup.sh'
 curl https://sms.shareapi.ai/api/health
 ```
+
+Android Terminal 下载：
+
+- APK：<https://github.com/guanxiong/VibeSMS/releases/latest/download/VibeSMS-0.1.0.apk>
+- Release 与校验值：<https://github.com/guanxiong/VibeSMS/releases/tag/v0.1.0>
+- SHA-256：`13346cd206c68c96454622f5e9513b9b0c394ef595fc8e4677c4724975b96813`
+
+发布私钥只保存在维护者机器。GitHub Actions 负责编译未签名 Release Candidate，本地使用官方 `apksigner` 完成签名后再上传 GitHub Release。
 
 ## HTTPS 部署
 
