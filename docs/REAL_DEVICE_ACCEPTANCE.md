@@ -31,9 +31,22 @@ Android 端：SmsForwarder 3.5.0
 
 来电刚开始时 Android 可能暂时无法提供 SIM 槽位，后续结束事件会补充槽位信息；服务端允许该阶段字段为空。
 
+## 公网 HTTPS 切换待办
+
+`sms.shareapi.ai` 已于 2026-08-08 部署完成，DNS、Let’s Encrypt 证书、OpenResty、管理员认证、设备 Token 和公网访问均已验收。按用户安排，手机端切换延后到设备再次连接并解锁时执行。
+
+下次连接手机后：
+
+1. 把 `SMS MVP` 的 Webhook 改为 `https://sms.shareapi.ai/api/v1/events`。
+2. 把 `SMS Heartbeat` 的 Webhook 改为 `https://sms.shareapi.ai/api/v1/devices/heartbeat`。
+3. 保持原有 `X-Gateway-Token`、请求体和响应关键字不变。
+4. 分别执行两个通道测试，确认返回 `SMS_MVP_OK`。
+5. 关闭 ADB 后再次测试事件上传，并等待一轮 15 分钟自动心跳。
+6. 用一条真实短信或来电完成公网端到端验收后，将 MVP-003 提交审核。
+
 ## 已知边界
 
 - 规则测试页的短信模拟会错误携带默认通话类型，真实短信广播不受影响。
-- 当前无 USB 验收使用局域网 HTTP；离开该 Wi-Fi 前必须切换到正式 HTTPS 域名。
-- Caddy 生产配置已提供，但签发公网证书仍要求真实域名、DNS 和可访问的 80/443 端口。
+- 当前手机仍使用原局域网 HTTP 地址；在切换到正式 HTTPS 域名前，只能在原局域网环境上传。
+- 公网服务已上线，但手机端尚未切换，因此暂不能把公网服务器在线状态当作真机公网链路已验收。
 - SmsForwarder 的定时任务受 Android 后台调度影响，网络恢复补发目标是 15 分钟级而非实时消息队列 SLA。
