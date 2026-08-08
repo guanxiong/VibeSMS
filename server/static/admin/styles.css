@@ -66,6 +66,20 @@ select:disabled { cursor: not-allowed; opacity: .58; }
 .key-secret div span { color: var(--accent); font: 700 9px ui-monospace, monospace; letter-spacing: .1em; }
 .key-secret div strong { margin-top: 5px; font-size: 13px; }
 .key-secret code { grid-column: 1 / -1; overflow-x: auto; padding: 12px; background: #09130e; color: #dff8e9; font-size: 12px; white-space: nowrap; }
+.activation-console { display: grid; grid-template-columns: minmax(260px, .7fr) minmax(430px, 1.3fr); gap: 16px; margin-top: 16px; }
+.activation-form, .requests, .activation-codes { border: 1px solid var(--line); border-radius: 14px; background: var(--panel); }
+.activation-form { display: grid; gap: 14px; align-content: start; padding: 18px; }
+.activation-form label { display: grid; gap: 7px; color: var(--muted); font-size: 11px; }
+.activation-form .field-help { margin: 0; }
+.requests, .activation-codes { overflow: hidden; }
+.activation-codes { margin-top: 12px; }
+.requests > .empty, .activation-codes > .empty { padding: 20px; }
+.subsection-label { margin: 0; padding: 13px 18px; color: var(--muted); border-bottom: 1px solid var(--line); font: 700 10px ui-monospace, monospace; letter-spacing: .12em; }
+.request-card, .activation-card { padding: 16px 18px; border-bottom: 1px solid var(--line); }
+.request-card:last-child, .activation-card:last-child { border-bottom: 0; }
+.request-card dl, .activation-card dl { grid-template-columns: 1fr 1fr; margin-top: 13px; }
+.request-card dd { white-space: normal; line-height: 1.45; }
+.is-handled { opacity: .63; }
 .devices { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 12px; margin-top: 16px; }
 .device-card { padding: 18px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); }
 .device-state { padding: 4px 8px; border-radius: 999px; font: 700 11px ui-monospace, monospace; }
@@ -94,7 +108,9 @@ tbody tr:last-child td { border-bottom: 0; }
   .summary { grid-template-columns: 1fr 1fr; }
   .section-title { align-items: flex-end; }
   .key-console { grid-template-columns: 1fr; }
+  .activation-console { grid-template-columns: 1fr; }
   .key-form { grid-template-columns: 1fr; }
   .key-form label, .key-form label:first-child, .key-form label:nth-child(3), .key-form label:nth-child(4), .key-form .sim-field, .key-form .primary-action { grid-column: 1; }
   .key-card dl { grid-template-columns: 1fr; }
+  .request-card dl, .activation-card dl { grid-template-columns: 1fr; }
 }

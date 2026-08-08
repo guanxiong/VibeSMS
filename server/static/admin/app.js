@@ -45,6 +45,43 @@ function showKeySecret(value, label) {
   secret.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
 
+function showActivationSecret(value, label) {
+  const secret = document.querySelector("#activation-secret");
+  document.querySelector("#activation-secret-label").textContent = label;
+  document.querySelector("#activation-secret-value").textContent = value;
+  document.querySelector("#copy-activation").textContent = "复制激活码";
+  secret.hidden = false;
+  secret.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+function renderRequests(requests) {
+  const container = document.querySelector("#key-requests");
+  if (!requests.length) {
+    container.innerHTML = '<p class="empty">尚无 Key 申请</p>';
+    return;
+  }
+  container.innerHTML = `<p class="subsection-label">KEY REQUESTS · ${requests.length}</p>` + requests.map(request => `
+    <article class="request-card ${request.status !== "pending" ? "is-handled" : ""}">
+      <div class="key-card-head"><div><strong>${escapeHtml(request.email)}</strong><span>${escapeHtml(request.request_id)}</span></div><span class="key-state">${escapeHtml(request.status.toUpperCase())}</span></div>
+      <dl><div><dt>用途</dt><dd>${escapeHtml(request.use_case)}</dd></div><div><dt>终端</dt><dd>${escapeHtml(request.device_count)} 台</dd></div><div><dt>补充联系</dt><dd>${escapeHtml(request.contact || "—")}</dd></div><div><dt>提交时间</dt><dd>${formatTime(request.created_at)}</dd></div></dl>
+      ${request.status === "pending" ? `<div class="key-actions"><button type="button" data-request-id="${escapeHtml(request.request_id)}">填入并生成激活码</button></div>` : ""}
+    </article>`).join("");
+}
+
+function renderActivationCodes(codes) {
+  const container = document.querySelector("#activation-codes");
+  if (!codes.length) {
+    container.innerHTML = '<p class="empty">尚无激活码</p>';
+    return;
+  }
+  container.innerHTML = `<p class="subsection-label">ACTIVATION CODES · ${codes.length}</p>` + codes.map(code => `
+    <article class="activation-card ${code.status !== "available" ? "is-handled" : ""}">
+      <div class="key-card-head"><div><strong>${escapeHtml(code.label || code.activation_id)}</strong><span>${escapeHtml(code.activation_id)}</span></div><span class="key-state">${escapeHtml(code.status.toUpperCase())}</span></div>
+      <dl><div><dt>关联申请</dt><dd class="mono">${escapeHtml(code.request_id || "—")}</dd></div><div><dt>到期</dt><dd>${formatTime(code.expires_at)}</dd></div>${code.redeemed_phone ? `<div><dt>兑换号码</dt><dd>${escapeHtml(code.redeemed_phone)}</dd></div><div><dt>Key ID</dt><dd class="mono">${escapeHtml(code.key_id)}</dd></div>` : ""}</dl>
+      ${code.status === "available" ? `<div class="key-actions"><button class="danger" type="button" data-activation-id="${escapeHtml(code.activation_id)}">作废</button></div>` : ""}
+    </article>`).join("");
+}
+
 function renderKeys(keys) {
   const container = document.querySelector("#keys");
   document.querySelector("#key-count").textContent = keys.filter(key => key.enabled).length;
@@ -121,14 +158,18 @@ async function refresh() {
   const statusText = document.querySelector("#status-text");
   try {
     const suffix = state.type ? `?limit=200&type=${encodeURIComponent(state.type)}` : "?limit=200";
-    const [devices, events, keys] = await Promise.all([
+    const [devices, events, keys, requests, activationCodes] = await Promise.all([
       getJson("/api/v1/devices"),
       getJson(`/api/v1/events${suffix}`),
-      getJson("/api/v1/admin/keys")
+      getJson("/api/v1/admin/keys"),
+      getJson("/api/v1/admin/key-requests"),
+      getJson("/api/v1/admin/activation-codes")
     ]);
     renderDevices(devices.devices);
     renderEvents(events.events);
     renderKeys(keys.keys);
+    renderRequests(requests.requests);
+    renderActivationCodes(activationCodes.activation_codes);
     statusDot.className = "online";
     statusText.textContent = "服务正常";
   } catch (error) {
@@ -173,6 +214,50 @@ document.querySelector("#key-form").addEventListener("submit", async event => {
   }
 });
 
+document.querySelector("#activation-form").addEventListener("submit", async event => {
+  event.preventDefault();
+  const submit = event.currentTarget.querySelector("button[type=submit]");
+  const payload = {
+    request_id: document.querySelector("#activation-request").value.trim(),
+    label: document.querySelector("#activation-label").value.trim(),
+    expires_in_days: Number(document.querySelector("#activation-days").value)
+  };
+  submit.disabled = true;
+  try {
+    const result = await postJson("/api/v1/admin/activation-codes", payload);
+    showActivationSecret(result.activation_code, `${result.activation_id} · 至 ${formatTime(result.expires_at)}`);
+    event.currentTarget.reset();
+    document.querySelector("#activation-days").value = "14";
+    await refresh();
+  } catch (error) {
+    window.alert(`生成失败：${error.message}`);
+  } finally {
+    submit.disabled = false;
+  }
+});
+
+document.querySelector("#key-requests").addEventListener("click", event => {
+  const button = event.target.closest("button[data-request-id]");
+  if (!button) return;
+  document.querySelector("#activation-request").value = button.dataset.requestId;
+  document.querySelector("#activation-label").focus();
+  document.querySelector("#activation-form").scrollIntoView({ behavior: "smooth", block: "center" });
+});
+
+document.querySelector("#activation-codes").addEventListener("click", async event => {
+  const button = event.target.closest("button[data-activation-id]");
+  if (!button || !window.confirm("作废后该激活码不能再兑换，继续吗？")) return;
+  button.disabled = true;
+  try {
+    await postJson(`/api/v1/admin/activation-codes/${encodeURIComponent(button.dataset.activationId)}/disable`);
+    await refresh();
+  } catch (error) {
+    window.alert(`作废失败：${error.message}`);
+  } finally {
+    button.disabled = false;
+  }
+});
+
 document.querySelector("#keys").addEventListener("click", async event => {
   const button = event.target.closest("button[data-key-action]");
   if (!button) return;
@@ -202,6 +287,15 @@ document.querySelector("#copy-key").addEventListener("click", async event => {
     event.currentTarget.textContent = "已复制";
   } catch (_error) {
     window.alert("复制失败，请手工复制并立即保存到 Secret 管理器。");
+  }
+});
+
+document.querySelector("#copy-activation").addEventListener("click", async event => {
+  try {
+    await navigator.clipboard.writeText(document.querySelector("#activation-secret-value").textContent);
+    event.currentTarget.textContent = "已复制";
+  } catch (_error) {
+    window.alert("复制失败，请手工复制激活码后安全发送。");
   }
 });
 

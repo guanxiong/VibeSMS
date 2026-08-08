@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="兑换 VibeSMS 一次性激活码，获得只显示一次的用户 Key。">
+    <meta name="robots" content="noindex,nofollow">
+    <meta name="theme-color" content="#f3f1e9">
+    <title>兑换激活码 · VibeSMS</title>
+    <link rel="stylesheet" href="/apply/styles.css">
+  </head>
+  <body>
+    <a class="skip-link" href="#activation">跳到兑换表单</a>
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="VibeSMS 首页"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span><span>VibeSMS</span></a>
+      <nav aria-label="辅助导航"><a href="/apply/">申请测试 Key</a><a href="/inbox/">Key 收件箱</a></nav>
+    </header>
+    <main id="activation">
+      <section class="intro">
+        <p class="eyebrow">ACTIVATE / ONE TIME</p>
+        <h1><span>兑换激活码，</span><span>生成只属于</span><span>你的 Key。</span></h1>
+        <p>激活码不是 Key，也只能兑换一次。填写你要接入的手机号后，系统会生成一个只显示一次的 VibeSMS Key。</p>
+        <dl>
+          <div><dt>一枚激活码</dt><dd>只生成一个用户 Key</dd></div>
+          <div><dt>一个 Key</dt><dd>只读取一个号码对应的事件</dd></div>
+          <div><dt>请立即保存</dt><dd>Key 不会再次以明文显示</dd></div>
+        </dl>
+      </section>
+      <section class="form-card" aria-labelledby="activation-title">
+        <div class="form-heading"><p class="eyebrow">REDEEM / 02</p><h2 id="activation-title"><span>输入激活码和</span><span>手机号</span></h2><p>手机号只在此时提交，用于创建号码与 Key 的隔离关系。</p></div>
+        <form id="activation-form">
+          <label for="activation-code">一次性激活码 <em>必填</em><input id="activation-code" name="activation_code" class="mono-input" autocapitalize="off" autocomplete="off" spellcheck="false" maxlength="128" placeholder="vba_••••••••••••••••" required></label>
+          <label for="phone-number">要接入的手机号 <em>必填</em><input id="phone-number" name="phone_number" type="tel" inputmode="tel" autocomplete="tel" maxlength="32" placeholder="+8613800000000" required></label>
+          <button id="redeem-button" class="primary-action" type="submit">兑换我的 Key <span aria-hidden="true">→</span></button>
+          <p id="form-error" class="form-error" role="alert" aria-live="polite"></p>
+          <p class="privacy-note">请确认这是你拥有或获授权管理的号码。不要把激活码或生成后的 Key 发给他人。</p>
+        </form>
+        <div id="activation-success" class="success-panel" hidden>
+          <p class="eyebrow">KEY ISSUED / SHOWN ONCE</p>
+          <h2>现在就保存你的 Key。</h2>
+          <code id="issued-key" class="secret-value"></code>
+          <div class="success-actions"><button id="copy-key" type="button">复制 Key</button><a class="primary-action link-button" href="/inbox/">打开 Key 收件箱 →</a></div>
+          <p>此 Key 已临时保存在当前浏览器标签页，打开收件箱即可继续。关闭标签页后本地状态会清除。</p>
+        </div>
+      </section>
+    </main>
+    <footer><span>VibeSMS · Bring your own SIM.</span><a href="https://github.com/guanxiong/VibeSMS">GitHub</a></footer>
+    <script src="/activate/app.js" defer></script>
+  </body>
+</html>

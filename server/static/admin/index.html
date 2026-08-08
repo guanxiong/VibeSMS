@@ -63,6 +63,31 @@
 
       <section>
         <div class="section-title">
+          <div><p class="eyebrow">ONBOARDING</p><h2>申请与激活码</h2></div>
+          <span class="section-hint">只交付一次性激活码；真实 Key 由用户自行兑换</span>
+        </div>
+        <div class="activation-console">
+          <form id="activation-form" class="activation-form">
+            <label>申请编号<input id="activation-request" name="request_id" placeholder="vr_…（可选，来自下方申请）"></label>
+            <label>标签<input id="activation-label" name="label" placeholder="测试用户或用途"></label>
+            <label>有效期（天）<input id="activation-days" name="expires_in_days" type="number" min="1" max="365" value="14" required></label>
+            <button class="primary-action" type="submit">生成激活码</button>
+            <p class="field-help">生成后请通过邮箱或微信人工发送。激活码不是 Key，且只显示一次。</p>
+          </form>
+          <div>
+            <div id="activation-secret" class="key-secret" hidden>
+              <div><span>仅显示一次</span><strong id="activation-secret-label">新激活码</strong></div>
+              <code id="activation-secret-value"></code>
+              <button id="copy-activation" type="button">复制激活码</button>
+            </div>
+            <div id="key-requests" class="requests"><p class="empty">尚无 Key 申请</p></div>
+            <div id="activation-codes" class="activation-codes"><p class="empty">尚无激活码</p></div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-title">
           <div><p class="eyebrow">FLEET</p><h2>终端状态</h2></div>
           <button id="refresh" type="button">刷新</button>
         </div>

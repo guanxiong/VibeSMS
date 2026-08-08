@@ -16,7 +16,7 @@ import secrets
 import sqlite3
 import threading
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -24,16 +24,22 @@ from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import parse_qs, urlparse
 
 
-VERSION = "0.5.0"
+VERSION = "0.6.0"
 PRODUCT_NAME = "VibeSMS"
 MAX_BODY_BYTES = 1024 * 1024
 STATIC_DIR = Path(__file__).with_name("static")
 UNKNOWN_CALL_TYPES = {"", "0", "unknown", "unknown call", "未知", "未知通话"}
 USER_KEY_PREFIX = "vbs_live_"
+ACTIVATION_CODE_PREFIX = "vba_"
+REQUEST_EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
 class ConflictError(ValueError):
     """The request is valid but conflicts with an existing active binding."""
+
+
+class ActivationError(ValueError):
+    """An activation code is invalid, expired, or has already been used."""
 
 
 def utc_now() -> str:
@@ -255,6 +261,33 @@ class GatewayStore:
         CREATE UNIQUE INDEX IF NOT EXISTS idx_user_keys_active_binding
             ON user_keys(device_id, sim_slot)
             WHERE enabled = 1 AND device_id != '' AND sim_slot IS NOT NULL;
+        CREATE TABLE IF NOT EXISTS key_requests (
+            request_id TEXT PRIMARY KEY,
+            email TEXT NOT NULL,
+            contact TEXT NOT NULL DEFAULT '',
+            use_case TEXT NOT NULL,
+            device_count TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending',
+            activation_id TEXT NOT NULL DEFAULT '',
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_key_requests_status ON key_requests(status, created_at DESC);
+        CREATE TABLE IF NOT EXISTS activation_codes (
+            activation_id TEXT PRIMARY KEY,
+            request_id TEXT NOT NULL DEFAULT '',
+            label TEXT NOT NULL DEFAULT '',
+            code_hash TEXT NOT NULL UNIQUE,
+            status TEXT NOT NULL DEFAULT 'available',
+            expires_at TEXT NOT NULL,
+            redeemed_at TEXT NOT NULL DEFAULT '',
+            redeemed_phone TEXT NOT NULL DEFAULT '',
+            key_id TEXT NOT NULL DEFAULT '',
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_activation_codes_status
+            ON activation_codes(status, created_at DESC);
         """
         with self._lock, self._connect() as connection:
             connection.executescript(schema)
@@ -338,6 +371,174 @@ class GatewayStore:
     @staticmethod
     def _new_key_id() -> str:
         return "vk_" + secrets.token_hex(8)
+
+    @staticmethod
+    def _new_activation_id() -> str:
+        return "va_" + secrets.token_hex(8)
+
+    @staticmethod
+    def _new_request_id() -> str:
+        return "vr_" + secrets.token_hex(8)
+
+    @staticmethod
+    def _new_activation_code() -> str:
+        return ACTIVATION_CODE_PREFIX + secrets.token_urlsafe(24)
+
+    def create_key_request(
+        self, email: str, use_case: str, device_count: str, contact: str = ""
+    ) -> str:
+        email = clean_text(email, 254).lower()
+        use_case = clean_text(use_case, 600)
+        contact = clean_text(contact, 256)
+        device_count = clean_text(device_count, 16)
+        if not REQUEST_EMAIL_PATTERN.fullmatch(email):
+            raise ValueError("please provide a valid email address")
+        if len(use_case) < 2:
+            raise ValueError("please briefly describe the intended use")
+        if device_count not in {"1", "2-5", "6+"}:
+            raise ValueError("device_count must be 1, 2-5, or 6+")
+        now = utc_now()
+        request_id = self._new_request_id()
+        with self._lock, self._connect() as connection:
+            recent = connection.execute(
+                """SELECT COUNT(*) FROM key_requests
+                   WHERE email = ? AND created_at >= datetime('now', '-1 day')""",
+                (email,),
+            ).fetchone()[0]
+            if recent >= 3:
+                raise ConflictError("too many requests for this email; please try again tomorrow")
+            connection.execute(
+                """INSERT INTO key_requests (
+                    request_id, email, contact, use_case, device_count, status, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, 'pending', ?, ?)""",
+                (request_id, email, contact, use_case, device_count, now, now),
+            )
+        return request_id
+
+    def list_key_requests(self) -> List[Dict[str, Any]]:
+        with self._lock, self._connect() as connection:
+            rows = connection.execute(
+                """SELECT request_id, email, contact, use_case, device_count, status,
+                          activation_id, created_at, updated_at
+                   FROM key_requests ORDER BY created_at DESC"""
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    def create_activation_code(
+        self, label: str = "", request_id: str = "", expires_in_days: int = 14
+    ) -> Tuple[str, str, str]:
+        request_id = clean_text(request_id, 64)
+        label = clean_text(label, 128)
+        if expires_in_days < 1 or expires_in_days > 365:
+            raise ValueError("expires_in_days must be between 1 and 365")
+        activation_id = self._new_activation_id()
+        code = self._new_activation_code()
+        now = utc_now()
+        expires_at = (datetime.now(timezone.utc) + timedelta(days=expires_in_days)).isoformat(
+            timespec="seconds"
+        )
+        with self._lock, self._connect() as connection:
+            if request_id:
+                request = connection.execute(
+                    "SELECT request_id, status FROM key_requests WHERE request_id = ?", (request_id,)
+                ).fetchone()
+                if not request:
+                    raise ValueError("key request not found")
+                if request["status"] != "pending":
+                    raise ConflictError("key request has already been handled")
+            connection.execute(
+                """INSERT INTO activation_codes (
+                    activation_id, request_id, label, code_hash, status, expires_at, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, 'available', ?, ?, ?)""",
+                (activation_id, request_id, label, token_digest(code), expires_at, now, now),
+            )
+            if request_id:
+                connection.execute(
+                    """UPDATE key_requests
+                       SET status = 'approved', activation_id = ?, updated_at = ?
+                       WHERE request_id = ?""",
+                    (activation_id, now, request_id),
+                )
+        return activation_id, code, expires_at
+
+    def list_activation_codes(self) -> List[Dict[str, Any]]:
+        with self._lock, self._connect() as connection:
+            rows = connection.execute(
+                """SELECT activation_id, request_id, label, status, expires_at, redeemed_at,
+                          redeemed_phone, key_id, created_at, updated_at
+                   FROM activation_codes ORDER BY created_at DESC"""
+            ).fetchall()
+        now = datetime.now(timezone.utc)
+        activation_codes = []
+        for row in rows:
+            activation = dict(row)
+            if activation["status"] == "available":
+                try:
+                    expires_at = datetime.fromisoformat(activation["expires_at"])
+                    if expires_at.tzinfo is None:
+                        expires_at = expires_at.replace(tzinfo=timezone.utc)
+                    if now >= expires_at:
+                        activation["status"] = "expired"
+                except (TypeError, ValueError):
+                    activation["status"] = "expired"
+            activation_codes.append(activation)
+        return activation_codes
+
+    def disable_activation_code(self, activation_id: str) -> None:
+        with self._lock, self._connect() as connection:
+            cursor = connection.execute(
+                """UPDATE activation_codes SET status = 'disabled', updated_at = ?
+                   WHERE activation_id = ? AND status = 'available'""",
+                (utc_now(), clean_text(activation_id, 64)),
+            )
+            if cursor.rowcount != 1:
+                raise ValueError("activation code is unavailable or missing")
+
+    def redeem_activation_code(self, code: str, phone_number: str) -> Tuple[str, str, str]:
+        code = clean_text(code, 128)
+        if not code.startswith(ACTIVATION_CODE_PREFIX):
+            raise ActivationError("activation code is invalid")
+        phone_number = normalize_phone_number(phone_number)
+        now = utc_now()
+        with self._lock, self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            row = connection.execute(
+                """SELECT activation_id, request_id, label, status, expires_at
+                   FROM activation_codes WHERE code_hash = ?""",
+                (token_digest(code),),
+            ).fetchone()
+            if not row:
+                raise ActivationError("activation code is invalid")
+            if row["status"] != "available":
+                raise ActivationError("activation code has already been used or disabled")
+            try:
+                expires_at = datetime.fromisoformat(row["expires_at"])
+                if expires_at.tzinfo is None:
+                    expires_at = expires_at.replace(tzinfo=timezone.utc)
+            except (TypeError, ValueError) as exc:
+                raise ActivationError("activation code is invalid") from exc
+            if datetime.now(timezone.utc) >= expires_at:
+                raise ActivationError("activation code has expired")
+            key_id = self._new_key_id()
+            token = self._new_user_token()
+            owner_ref = "request:" + row["request_id"] if row["request_id"] else "activation"
+            try:
+                connection.execute(
+                    """INSERT INTO user_keys (
+                        key_id, label, phone_number, owner_ref, device_id, sim_slot,
+                        token_hash, enabled, created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, '', NULL, ?, 1, ?, ?)""",
+                    (key_id, row["label"], phone_number, owner_ref, token_digest(token), now, now),
+                )
+            except sqlite3.IntegrityError as exc:
+                raise ConflictError("phone number already has an active key") from exc
+            connection.execute(
+                """UPDATE activation_codes
+                   SET status = 'redeemed', redeemed_at = ?, redeemed_phone = ?, key_id = ?, updated_at = ?
+                   WHERE activation_id = ?""",
+                (now, phone_number, key_id, now, row["activation_id"]),
+            )
+        return key_id, token, row["label"]
 
     def issue_user_key(
         self,
@@ -813,6 +1014,49 @@ class GatewayRequestHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         path = urlparse(self.path).path.rstrip("/")
+        if path == "/api/v1/key-requests":
+            try:
+                payload = self._read_json()
+                # A hidden honeypot keeps low-effort form spam out without profiling visitors.
+                if clean_text(payload.get("website"), 256):
+                    self._json(HTTPStatus.CREATED, {"ok": True, "request_id": "accepted"})
+                    return
+                request_id = self.gateway_server.store.create_key_request(
+                    payload.get("email"),
+                    payload.get("use_case"),
+                    payload.get("device_count"),
+                    payload.get("contact"),
+                )
+            except ConflictError as exc:
+                self._json(HTTPStatus.TOO_MANY_REQUESTS, {"ok": False, "error": str(exc)})
+                return
+            except (ValueError, TypeError) as exc:
+                self._json(HTTPStatus.BAD_REQUEST, {"ok": False, "error": str(exc)})
+                return
+            self._json(HTTPStatus.CREATED, {"ok": True, "request_id": request_id})
+            return
+
+        if path == "/api/v1/activations/redeem":
+            try:
+                payload = self._read_json()
+                key_id, token, label = self.gateway_server.store.redeem_activation_code(
+                    payload.get("activation_code"), payload.get("phone_number")
+                )
+            except ConflictError as exc:
+                self._json(HTTPStatus.CONFLICT, {"ok": False, "error": str(exc)})
+                return
+            except ActivationError as exc:
+                self._json(HTTPStatus.BAD_REQUEST, {"ok": False, "error": str(exc)})
+                return
+            except (ValueError, TypeError) as exc:
+                self._json(HTTPStatus.BAD_REQUEST, {"ok": False, "error": str(exc)})
+                return
+            self._json(
+                HTTPStatus.CREATED,
+                {"ok": True, "key_id": key_id, "key": token, "label": label, "key_shown_once": True},
+            )
+            return
+
         if path == "/api/v1/bindings":
             key = self._user_key_authorized()
             if not key:
@@ -883,6 +1127,47 @@ class GatewayRequestHandler(BaseHTTPRequestHandler):
                 self._json(HTTPStatus.BAD_REQUEST, {"ok": False, "error": str(exc)})
                 return
             self._json(HTTPStatus.OK, {"ok": True, "key_id": key_id, "action": action})
+            return
+
+        activation_match = re.fullmatch(
+            r"/api/v1/admin/activation-codes(?:/([^/]+)/disable)?", path
+        )
+        if activation_match:
+            if not self._admin_authorized():
+                self._admin_unauthorized()
+                return
+            try:
+                payload = self._read_json()
+                activation_id = activation_match.group(1)
+                if activation_id:
+                    self.gateway_server.store.disable_activation_code(activation_id)
+                    self._json(
+                        HTTPStatus.OK,
+                        {"ok": True, "activation_id": activation_id, "action": "disable"},
+                    )
+                    return
+                expires_in_days = int(payload.get("expires_in_days", 14))
+                activation_id, code, expires_at = self.gateway_server.store.create_activation_code(
+                    clean_text(payload.get("label"), 128),
+                    clean_text(payload.get("request_id"), 64),
+                    expires_in_days,
+                )
+            except ConflictError as exc:
+                self._json(HTTPStatus.CONFLICT, {"ok": False, "error": str(exc)})
+                return
+            except (ValueError, TypeError) as exc:
+                self._json(HTTPStatus.BAD_REQUEST, {"ok": False, "error": str(exc)})
+                return
+            self._json(
+                HTTPStatus.CREATED,
+                {
+                    "ok": True,
+                    "activation_id": activation_id,
+                    "activation_code": code,
+                    "expires_at": expires_at,
+                    "activation_code_shown_once": True,
+                },
+            )
             return
 
         if path == "/api/v1/admin/devices" or (
@@ -1074,6 +1359,18 @@ class GatewayRequestHandler(BaseHTTPRequestHandler):
                 {"ok": True, "keys": self.gateway_server.store.list_user_keys()},
             )
             return
+        if path == "/api/v1/admin/key-requests":
+            self._json(
+                HTTPStatus.OK,
+                {"ok": True, "requests": self.gateway_server.store.list_key_requests()},
+            )
+            return
+        if path == "/api/v1/admin/activation-codes":
+            self._json(
+                HTTPStatus.OK,
+                {"ok": True, "activation_codes": self.gateway_server.store.list_activation_codes()},
+            )
+            return
         if self._serve_static(path, public=False):
             return
         self._json(HTTPStatus.NOT_FOUND, {"ok": False, "error": "not found"})
@@ -1089,6 +1386,13 @@ class GatewayRequestHandler(BaseHTTPRequestHandler):
                 "/inbox/": ("inbox/index.html", "text/html; charset=utf-8"),
                 "/inbox/app.js": ("inbox/app.js", "text/javascript; charset=utf-8"),
                 "/inbox/styles.css": ("inbox/styles.css", "text/css; charset=utf-8"),
+                "/apply": ("apply/index.html", "text/html; charset=utf-8"),
+                "/apply/": ("apply/index.html", "text/html; charset=utf-8"),
+                "/apply/app.js": ("apply/app.js", "text/javascript; charset=utf-8"),
+                "/apply/styles.css": ("apply/styles.css", "text/css; charset=utf-8"),
+                "/activate": ("activate/index.html", "text/html; charset=utf-8"),
+                "/activate/": ("activate/index.html", "text/html; charset=utf-8"),
+                "/activate/app.js": ("activate/app.js", "text/javascript; charset=utf-8"),
             }
             if public
             else {

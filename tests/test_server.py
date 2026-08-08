@@ -69,7 +69,8 @@ class GatewayServerTest(unittest.TestCase):
         self.assertIn('class="keep-together">“短信列表”，</span>', homepage)
         self.assertIn('class="keep-together">号码</span>', homepage)
         self.assertIn('class="keep-together">手机短信。</span>', homepage)
-        self.assertIn("issues/new?template=key-request.yml", homepage)
+        self.assertIn('href="/apply/"', homepage)
+        self.assertIn('href="/activate/"', homepage)
         self.assertIn('data-code-tab="python"', homepage)
         self.assertIn('data-code-tab="skill"', homepage)
         self.assertIn("npx skills add guanxiong/VibeSMS", homepage)
@@ -112,6 +113,93 @@ class GatewayServerTest(unittest.TestCase):
         with self.assertRaises(HTTPError) as raised:
             self.request("/api/v1/inbox?order=desc", user_token="not-a-key")
         self.assertEqual(raised.exception.code, 401)
+
+    def test_public_request_and_one_time_activation_flow(self):
+        for path, expected in (
+            ("/apply/", "ACCESS / TEST KEY"),
+            ("/apply/styles.css", ".form-card"),
+            ("/apply/app.js", "/api/v1/key-requests"),
+            ("/activate/", "兑换激活码"),
+            ("/activate/app.js", "sessionStorage"),
+        ):
+            with urlopen(self.base_url + path, timeout=3) as response:
+                self.assertEqual(response.status, 200)
+                self.assertIn(expected, response.read().decode("utf-8"))
+
+        status, request = self.request(
+            "/api/v1/key-requests",
+            "POST",
+            {
+                "email": "agent@example.com",
+                "use_case": "Use my own Android SIM with an Agent.",
+                "device_count": "1",
+                "contact": "wechat-example",
+            },
+        )
+        self.assertEqual(status, 201)
+        self.assertTrue(request["request_id"].startswith("vr_"))
+
+        _, requests = self.request("/api/v1/admin/key-requests", admin=True)
+        self.assertEqual(requests["requests"][0]["email"], "agent@example.com")
+        self.assertEqual(requests["requests"][0]["status"], "pending")
+
+        status, activation = self.request(
+            "/api/v1/admin/activation-codes",
+            "POST",
+            {"request_id": request["request_id"], "label": "Agent test", "expires_in_days": 14},
+            admin=True,
+        )
+        self.assertEqual(status, 201)
+        self.assertTrue(activation["activation_code"].startswith("vba_"))
+        self.assertTrue(activation["activation_code_shown_once"])
+
+        _, activation_codes = self.request("/api/v1/admin/activation-codes", admin=True)
+        self.assertNotIn("activation_code", activation_codes["activation_codes"][0])
+        self.assertEqual(activation_codes["activation_codes"][0]["status"], "available")
+
+        status, redeemed = self.request(
+            "/api/v1/activations/redeem",
+            "POST",
+            {"activation_code": activation["activation_code"], "phone_number": "+8613800012345"},
+        )
+        self.assertEqual(status, 201)
+        self.assertTrue(redeemed["key"].startswith("vbs_live_"))
+        self.assertTrue(redeemed["key_shown_once"])
+
+        with self.assertRaises(HTTPError) as raised:
+            self.request(
+                "/api/v1/activations/redeem",
+                "POST",
+                {"activation_code": activation["activation_code"], "phone_number": "+8613800012345"},
+            )
+        self.assertEqual(raised.exception.code, 400)
+
+        _, activation_codes = self.request("/api/v1/admin/activation-codes", admin=True)
+        self.assertEqual(activation_codes["activation_codes"][0]["status"], "redeemed")
+        self.assertEqual(activation_codes["activation_codes"][0]["key_id"], redeemed["key_id"])
+
+    def test_admin_can_disable_unused_activation_code(self):
+        _, activation = self.request(
+            "/api/v1/admin/activation-codes",
+            "POST",
+            {"label": "manual delivery", "expires_in_days": 1},
+            admin=True,
+        )
+        status, disabled = self.request(
+            "/api/v1/admin/activation-codes/%s/disable" % activation["activation_id"],
+            "POST",
+            {},
+            admin=True,
+        )
+        self.assertEqual(status, 200)
+        self.assertEqual(disabled["action"], "disable")
+        with self.assertRaises(HTTPError) as raised:
+            self.request(
+                "/api/v1/activations/redeem",
+                "POST",
+                {"activation_code": activation["activation_code"], "phone_number": "+8613800012345"},
+            )
+        self.assertEqual(raised.exception.code, 400)
 
     def test_otp_extraction_prefers_verification_code_over_year(self):
         self.assertEqual(extract_otp("2026-08-08 登录验证码为 482913"), "482913")

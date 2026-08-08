@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="申请 VibeSMS 测试 Key；管理员会安全交付一次性激活码。">
+    <meta name="robots" content="noindex,nofollow">
+    <meta name="theme-color" content="#f3f1e9">
+    <title>申请测试 Key · VibeSMS</title>
+    <link rel="stylesheet" href="/apply/styles.css">
+  </head>
+  <body>
+    <a class="skip-link" href="#application">跳到申请表单</a>
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="VibeSMS 首页"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span><span>VibeSMS</span></a>
+      <nav aria-label="辅助导航"><a href="/activate/">兑换激活码</a><a href="/inbox/">Key 收件箱</a></nav>
+    </header>
+    <main id="application">
+      <section class="intro">
+        <p class="eyebrow">ACCESS / TEST KEY</p>
+        <h1><span>申请一个</span><span>测试 Key，</span><span>把自己的号码</span><span>交给 Agent。</span></h1>
+        <p>无需新建账户。通过审核后，管理员会向你安全交付一枚一次性激活码；你再用它兑换真正的 VibeSMS Key。</p>
+        <dl>
+          <div><dt>不在这里提交</dt><dd>手机号、短信内容、Key 或 Token</dd></div>
+          <div><dt>你会收到</dt><dd>一次性激活码，不是长期凭据</dd></div>
+          <div><dt>下一步</dt><dd>在自己的 Android 终端首次绑定 SIM</dd></div>
+        </dl>
+      </section>
+      <section class="form-card" aria-labelledby="form-title">
+        <div class="form-heading"><p class="eyebrow">REQUEST / 01</p><h2 id="form-title"><span>告诉我们你的</span><span>使用方式</span></h2><p>仅用于人工审核与交付。测试资格取决于当前终端容量。</p></div>
+        <form id="request-form">
+          <label for="email">邮箱 <em>必填</em><input id="email" name="email" type="email" autocomplete="email" maxlength="254" placeholder="you@example.com" required></label>
+          <label for="use-case">用途 <em>必填</em><textarea id="use-case" name="use_case" rows="4" maxlength="600" placeholder="例如：让 Agent 完成我自己账号的注册验证；不会用于批量注册或转售。" required></textarea></label>
+          <label for="device-count">预计接入的 Android 终端<select id="device-count" name="device_count" required><option value="1">1 台</option><option value="2-5">2–5 台</option><option value="6+">6 台以上</option></select></label>
+          <label for="contact">补充联系方式 <span>可选，例如微信号</span><input id="contact" name="contact" maxlength="256" autocomplete="off" placeholder="便于人工交付激活码"></label>
+          <label class="honeypot" for="website">网站<input id="website" name="website" tabindex="-1" autocomplete="off"></label>
+          <button id="submit-request" class="primary-action" type="submit">提交申请 <span aria-hidden="true">→</span></button>
+          <p id="form-error" class="form-error" role="alert" aria-live="polite"></p>
+          <p class="privacy-note">提交即表示你同意我们为审核与交付保存这些信息。请勿发送任何短信正文、验证码或凭据。</p>
+        </form>
+        <div id="request-success" class="success-panel" hidden>
+          <p class="eyebrow">REQUEST RECEIVED</p>
+          <h2>申请已提交。</h2>
+          <p>申请编号 <code id="request-id"></code></p>
+          <p>审核通过后，我们会通过邮箱或你留下的联系方式发送一次性激活码。拿到激活码后，再填写你的手机号兑换真实 Key。</p>
+          <a class="quiet-link" href="/activate/">我已经有激活码 →</a>
+        </div>
+      </section>
+    </main>
+    <footer><span>VibeSMS · Bring your own SIM.</span><a href="https://github.com/guanxiong/VibeSMS">GitHub</a></footer>
+    <script src="/apply/app.js" defer></script>
+  </body>
+</html>

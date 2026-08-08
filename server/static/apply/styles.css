@@ -1,0 +1,42 @@
+:root { --paper: #f3f1e9; --ink: #111712; --muted: #667068; --line: #c9c9bd; --accent: #0f8054; --deep: #10271d; --warm: #ffcb19; }
+* { box-sizing: border-box; }
+html { background: var(--paper); }
+body { min-width: 320px; margin: 0; color: var(--ink); background: var(--paper); font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; }
+a { color: inherit; }
+.skip-link { position: fixed; z-index: 10; top: -200px; left: 1rem; padding: .65rem .8rem; color: white; background: var(--deep); border-radius: .35rem; white-space: nowrap; }
+.skip-link:focus { top: 1rem; }
+.topbar, main, footer { width: min(1120px, calc(100% - 48px)); margin-inline: auto; }
+.topbar { display: flex; align-items: center; justify-content: space-between; gap: 24px; min-height: 88px; border-bottom: 1px solid var(--line); }
+.brand { display: inline-flex; align-items: center; gap: 10px; color: var(--ink); font-weight: 800; letter-spacing: -.04em; text-decoration: none; }
+.brand-mark { display: inline-flex; align-items: end; gap: 2px; width: 22px; height: 22px; padding: 4px; color: white; background: var(--ink); border-radius: 5px; }
+.brand-mark i { display: block; width: 3px; background: currentColor; }
+.brand-mark i:nth-child(1) { height: 6px; }.brand-mark i:nth-child(2) { height: 11px; }.brand-mark i:nth-child(3) { height: 15px; }
+nav { display: flex; flex-wrap: wrap; justify-content: end; gap: 18px; color: #344036; font-size: 14px; }
+nav a { text-decoration: none; } nav a:hover { color: var(--accent); text-decoration: underline; text-underline-offset: 4px; }
+main { display: grid; grid-template-columns: minmax(0, .9fr) minmax(360px, .8fr); gap: clamp(40px, 8vw, 112px); padding-block: clamp(54px, 10vw, 132px); }
+.intro { align-self: center; }
+.eyebrow { margin: 0 0 13px; color: var(--accent); font: 800 12px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .16em; }
+h1, h2, p { overflow-wrap: break-word; }
+h1 { margin: 0; font-size: clamp(46px, 5.8vw, 83px); line-height: .98; letter-spacing: -.085em; }
+h1 span { display: block; white-space: nowrap; }
+.intro > p:not(.eyebrow) { max-width: 43ch; margin: 30px 0 0; color: var(--muted); font-size: 18px; line-height: 1.7; }
+dl { display: grid; gap: 14px; margin: 39px 0 0; }
+dl div { display: grid; grid-template-columns: 108px minmax(0, 1fr); gap: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+dt { color: var(--muted); font-size: 13px; } dd { margin: 0; font-size: 14px; line-height: 1.55; }
+.form-card { align-self: start; padding: clamp(24px, 3vw, 39px); border: 1px solid #abb0a7; border-radius: 20px; background: #fbfaf5; box-shadow: 9px 9px 0 var(--warm); }
+.form-heading h2 { margin: 0; font-size: clamp(27px, 3vw, 39px); letter-spacing: -.06em; } .form-heading h2 span { display: block; } .form-heading > p:last-child { margin: 12px 0 0; color: var(--muted); font-size: 14px; line-height: 1.65; }
+form { display: grid; gap: 19px; margin-top: 31px; }
+label { display: grid; gap: 8px; color: #364137; font-size: 14px; font-weight: 700; }
+label em { margin-left: 4px; color: var(--accent); font-size: 11px; font-style: normal; font-weight: 700; } label span { color: var(--muted); font-size: 12px; font-weight: 500; }
+input, select, textarea { width: 100%; border: 1px solid #aab0a6; border-radius: 9px; padding: 12px 13px; color: var(--ink); background: #fffef9; font: inherit; font-weight: 500; outline: none; }
+textarea { resize: vertical; min-height: 105px; line-height: 1.55; } input:focus, select:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px #0f805426; }
+.mono-input, code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+.honeypot { position: absolute; left: -9999px; opacity: 0; }
+button, .link-button { min-height: 48px; border: 1px solid var(--ink); border-radius: 9px; padding: 11px 16px; font: 800 15px/1 inherit; cursor: pointer; }
+.primary-action { color: white; background: var(--deep); text-decoration: none; } .primary-action:hover { background: var(--accent); } button:disabled { cursor: wait; opacity: .6; }
+.form-error { min-height: 1.2em; margin: -7px 0 0; color: #a02b2b; font-size: 13px; line-height: 1.5; }.privacy-note { margin: -4px 0 0; color: var(--muted); font-size: 12px; line-height: 1.65; }
+.success-panel { margin-top: 29px; }.success-panel h2 { margin: 0; font-size: clamp(30px, 4vw, 47px); letter-spacing: -.065em; }.success-panel > p:not(.eyebrow) { color: var(--muted); font-size: 14px; line-height: 1.7; }.success-panel code { color: var(--accent); font-weight: 800; }.secret-value { display: block; overflow-x: auto; margin: 21px 0; padding: 15px; color: #d5fce6; background: var(--deep); border-radius: 9px; font-size: 13px; white-space: nowrap; }.success-actions { display: flex; flex-wrap: wrap; gap: 10px; }.success-actions button { color: var(--ink); background: transparent; }.link-button { display: inline-flex; align-items: center; }
+.quiet-link { display: inline-block; margin-top: 8px; color: var(--accent); font-weight: 800; text-underline-offset: 4px; }
+footer { display: flex; justify-content: space-between; gap: 16px; padding: 26px 0 38px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; } footer a { color: var(--ink); }
+@media (max-width: 850px) { main { grid-template-columns: 1fr; max-width: 650px; }.intro { max-width: 560px; } h1 { max-width: none; font-size: clamp(45px, 10vw, 74px); } }
+@media (max-width: 570px) { .topbar, main, footer { width: min(100% - 32px, 1120px); }.topbar { align-items: flex-start; flex-direction: column; gap: 13px; padding: 18px 0; }.topbar nav { justify-content: flex-start; gap: 13px; } main { padding-block: 45px 72px; gap: 52px; } h1 { font-size: clamp(40px, 13vw, 57px); letter-spacing: -.075em; } h1 span { white-space: normal; }.intro > p:not(.eyebrow) { margin-top: 22px; font-size: 16px; } dl { margin-top: 29px; } dl div { grid-template-columns: 1fr; gap: 4px; } .form-card { padding: 22px; border-radius: 15px; box-shadow: 6px 6px 0 var(--warm); } footer { flex-direction: column; } }
