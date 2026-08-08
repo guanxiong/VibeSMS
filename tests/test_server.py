@@ -75,6 +75,8 @@ class GatewayServerTest(unittest.TestCase):
         self.assertIn("npx skills add guanxiong/VibeSMS", homepage)
         self.assertIn("gh skill install guanxiong/VibeSMS", homepage)
         self.assertIn('id="skill"', homepage)
+        self.assertIn('href="/inbox/"', homepage)
+        self.assertIn("申请测试 Key", homepage)
         self.assertNotIn("即将发布", homepage)
 
         with urlopen(self.base_url + "/site/styles.css", timeout=3) as response:
@@ -85,6 +87,31 @@ class GatewayServerTest(unittest.TestCase):
             self.assertEqual(response.status, 200)
             self.assertEqual(response.headers.get_content_type(), "image/jpeg")
             self.assertGreater(len(response.read()), 1000)
+
+    def test_public_key_inbox_page_does_not_require_admin_auth(self):
+        for path, expected in (
+            ("/inbox/", "只看属于"),
+            ("/inbox/styles.css", ".login-layout"),
+            ("/inbox/app.js", "sessionStorage"),
+        ):
+            with urlopen(self.base_url + path, timeout=3) as response:
+                self.assertEqual(response.status, 200)
+                self.assertIn(expected, response.read().decode("utf-8"))
+
+        inbox_html = (
+            Path(__file__).resolve().parents[1]
+            / "server"
+            / "static"
+            / "inbox"
+            / "index.html"
+        ).read_text(encoding="utf-8")
+        self.assertIn('content="noindex,nofollow"', inbox_html)
+        self.assertIn("vbs_live_", inbox_html)
+        self.assertNotIn("/api/v1/admin", inbox_html)
+
+        with self.assertRaises(HTTPError) as raised:
+            self.request("/api/v1/inbox?order=desc", user_token="not-a-key")
+        self.assertEqual(raised.exception.code, 401)
 
     def test_otp_extraction_prefers_verification_code_over_year(self):
         self.assertEqual(extract_otp("2026-08-08 登录验证码为 482913"), "482913")
@@ -409,6 +436,18 @@ class GatewayServerTest(unittest.TestCase):
                 },
                 token="test-token",
             )
+        self.request(
+            "/api/v1/events",
+            "POST",
+            {
+                "device_id": "SEA-AL10-01",
+                "event_type": "sms",
+                "sender": "SIM-ONE-LATEST",
+                "content": "latest code 654321",
+                "sim_slot": 1,
+            },
+            token="test-token",
+        )
 
         _, sim1_inbox = self.request(
             "/api/v1/inbox", user_token=sim1_key["key"]
@@ -416,7 +455,17 @@ class GatewayServerTest(unittest.TestCase):
         _, sim2_inbox = self.request(
             "/api/v1/inbox", user_token=sim2_key["key"]
         )
-        self.assertEqual([event["sender"] for event in sim1_inbox["events"]], ["SIM-ONE"])
+        _, sim1_latest = self.request(
+            "/api/v1/inbox?order=desc", user_token=sim1_key["key"]
+        )
+        self.assertEqual(
+            [event["sender"] for event in sim1_inbox["events"]],
+            ["SIM-ONE", "SIM-ONE-LATEST"],
+        )
+        self.assertEqual(
+            [event["sender"] for event in sim1_latest["events"]],
+            ["SIM-ONE-LATEST", "SIM-ONE"],
+        )
         self.assertEqual([event["sender"] for event in sim2_inbox["events"]], ["SIM-TWO"])
 
     def test_active_phone_and_binding_cannot_be_claimed_twice(self):

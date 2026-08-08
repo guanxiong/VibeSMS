@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="使用 VibeSMS Key 查看对应号码的短信、验证码、来电和终端状态。">
+    <meta name="robots" content="noindex,nofollow">
+    <meta name="theme-color" content="#f3f1e9">
+    <title>Key 收件箱 · VibeSMS</title>
+    <link rel="stylesheet" href="/inbox/styles.css">
+  </head>
+  <body>
+    <a class="skip-link" href="#main">跳到主要内容</a>
+
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="返回 VibeSMS 首页">
+        <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span>VibeSMS</span>
+      </a>
+      <nav aria-label="辅助导航">
+        <a href="https://github.com/guanxiong/VibeSMS/issues/new?template=key-request.yml">申请测试 Key</a>
+        <a href="https://github.com/guanxiong/VibeSMS/releases/download/v0.1.0/VibeSMS-0.1.0.apk">下载 APK</a>
+      </nav>
+    </header>
+
+    <main id="main">
+      <section id="login-view" class="login-layout" aria-labelledby="login-title">
+        <div class="login-copy">
+          <p class="eyebrow">KEY-SCOPED INBOX</p>
+          <h1 id="login-title"><span class="keep-together">只看属于</span><br><span class="keep-together">这个 Key 的</span><span class="keep-together">消息。</span></h1>
+          <p>无需注册新账户。输入管理员签发的 VibeSMS Key，即可查看它所绑定号码的终端状态、短信和来电。</p>
+          <dl>
+            <div><dt>隔离范围</dt><dd>一个 Key · 一个号码</dd></div>
+            <div><dt>凭据保存</dt><dd>仅当前浏览器标签页</dd></div>
+            <div><dt>权限</dt><dd>只读，不含管理功能</dd></div>
+          </dl>
+        </div>
+
+        <form id="login-form" class="login-form">
+          <div class="form-head">
+            <p>ACCESS / 01</p>
+            <span>Bearer Key</span>
+          </div>
+          <label for="key-input">VibeSMS Key</label>
+          <input id="key-input" name="key" type="password" placeholder="vbs_live_••••••••••••••••" autocomplete="off" autocapitalize="off" spellcheck="false" required>
+          <button id="login-button" type="submit">打开我的收件箱 <span aria-hidden="true">→</span></button>
+          <p id="login-error" class="form-error" role="alert" aria-live="polite"></p>
+          <p class="form-note">Key 不会写入 URL 或发送给第三方。关闭当前标签页后，本地登录状态自动清除。</p>
+          <div class="form-actions">
+            <span>还没有 Key？</span>
+            <a href="https://github.com/guanxiong/VibeSMS/issues/new?template=key-request.yml">申请测试 Key ↗</a>
+          </div>
+        </form>
+      </section>
+
+      <section id="inbox-view" class="inbox-view" aria-labelledby="inbox-title" hidden>
+        <header class="inbox-head">
+          <div>
+            <p class="eyebrow">PRIVATE INBOX</p>
+            <h1 id="inbox-title">我的收件箱</h1>
+          </div>
+          <button id="logout-button" class="quiet-button" type="button">退出并清除 Key</button>
+        </header>
+
+        <div class="identity-strip">
+          <div><span>绑定号码</span><strong id="phone-number">—</strong></div>
+          <div><span>终端状态</span><strong id="device-state"><i></i> 检查中</strong></div>
+          <div><span>SIM 卡槽</span><strong id="sim-slot">—</strong></div>
+          <div><span>当前游标</span><strong id="cursor-value">0</strong></div>
+        </div>
+
+        <div class="inbox-toolbar">
+          <div class="filters" role="group" aria-label="事件类型">
+            <button class="filter is-active" type="button" data-type="" aria-pressed="true">全部</button>
+            <button class="filter" type="button" data-type="sms" aria-pressed="false">短信</button>
+            <button class="filter" type="button" data-type="call" aria-pressed="false">来电</button>
+          </div>
+          <div class="refresh-state">
+            <span id="refresh-label" aria-live="polite">正在读取…</span>
+            <button id="refresh-button" class="quiet-button" type="button">立即刷新</button>
+          </div>
+        </div>
+
+        <div id="inbox-notice" class="inbox-notice" role="status" hidden></div>
+        <ol id="event-list" class="event-list" aria-live="polite"></ol>
+      </section>
+    </main>
+
+    <footer>
+      <span>VibeSMS · KEY-SCOPED ACCESS</span>
+      <a href="/">项目主页</a>
+      <a href="https://github.com/guanxiong/VibeSMS/blob/main/SECURITY.md">安全说明</a>
+    </footer>
+
+    <script src="/inbox/app.js" defer></script>
+  </body>
+</html>

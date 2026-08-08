@@ -19,8 +19,9 @@ Query parameters:
 - `after_id`: return events with a larger ID; defaults to `0`.
 - `type`: `sms`, `call`, `test`, or empty for all.
 - `limit`: 1–200; defaults to 100.
+- `order`: `asc` for oldest first (default) or `desc` for a recent-message view.
 
-Events are returned oldest first so the response `cursor` can be used for the next read.
+Events are returned oldest first by default so the response `cursor` can be used for the next read. The Key Inbox web page uses `order=desc` to show the newest messages first.
 
 ## `GET /api/v1/otp/wait`
 

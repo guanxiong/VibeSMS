@@ -24,7 +24,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import parse_qs, urlparse
 
 
-VERSION = "0.4.0"
+VERSION = "0.5.0"
 PRODUCT_NAME = "VibeSMS"
 MAX_BODY_BYTES = 1024 * 1024
 STATIC_DIR = Path(__file__).with_name("static")
@@ -597,6 +597,7 @@ class GatewayStore:
         after_id: int = 0,
         limit: int = 100,
         event_type: str = "",
+        newest_first: bool = False,
     ) -> List[Dict[str, Any]]:
         if not key.get("device_id") or key.get("sim_slot") not in (1, 2):
             return []
@@ -610,13 +611,16 @@ class GatewayStore:
             "id, event_id, event_type, sender, content, received_at, sim_slot, "
             "sim_label, call_type, created_at"
         )
+        order = "DESC" if newest_first else "ASC"
         with self._lock, self._connect() as connection:
             rows = connection.execute(
                 "SELECT "
                 + fields
                 + " FROM events WHERE "
                 + " AND ".join(clauses)
-                + " ORDER BY id ASC LIMIT ?",
+                + " ORDER BY id "
+                + order
+                + " LIMIT ?",
                 params,
             ).fetchall()
         return [dict(row) for row in rows]
@@ -976,10 +980,17 @@ class GatewayRequestHandler(BaseHTTPRequestHandler):
                     event_type = clean_text(query.get("type", [""])[0], 32).lower()
                     if event_type not in {"", "sms", "call", "test"}:
                         raise ValueError("type must be sms, call, test, or empty")
+                    order = clean_text(query.get("order", ["asc"])[0], 8).lower()
+                    if order not in {"asc", "desc"}:
+                        raise ValueError("order must be asc or desc")
                     events = self.gateway_server.store.list_key_events(
-                        key, after_id=after_id, limit=limit, event_type=event_type
+                        key,
+                        after_id=after_id,
+                        limit=limit,
+                        event_type=event_type,
+                        newest_first=order == "desc",
                     )
-                    cursor = events[-1]["id"] if events else after_id
+                    cursor = max((event["id"] for event in events), default=after_id)
                     self._json(
                         HTTPStatus.OK,
                         {"ok": True, "events": events, "cursor": cursor},
@@ -1074,6 +1085,10 @@ class GatewayRequestHandler(BaseHTTPRequestHandler):
                 "/site/app.js": ("site/app.js", "text/javascript; charset=utf-8"),
                 "/site/styles.css": ("site/styles.css", "text/css; charset=utf-8"),
                 "/site/og-vibesms.jpg": ("site/og-vibesms.jpg", "image/jpeg"),
+                "/inbox": ("inbox/index.html", "text/html; charset=utf-8"),
+                "/inbox/": ("inbox/index.html", "text/html; charset=utf-8"),
+                "/inbox/app.js": ("inbox/app.js", "text/javascript; charset=utf-8"),
+                "/inbox/styles.css": ("inbox/styles.css", "text/css; charset=utf-8"),
             }
             if public
             else {

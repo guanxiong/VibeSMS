@@ -4,13 +4,13 @@
 
 把 Android 手机变成 Agent 可调用的短信与来电终端。用户使用一个 Key 接入自己的 SIM，设备将事件可靠上传到 `sms.shareapi.ai`，Agent 再基于同一 Key 隔离读取。
 
-当前版本已提供无账户 Key 接入、按号码与 SIM 隔离的 Agent Inbox/OTP API、VibeSMS Skill，以及带离线队列和主动心跳的专用 Android Terminal。产品定义见 [docs/VIBESMS_PRODUCT.md](docs/VIBESMS_PRODUCT.md)。
+当前版本已提供无账户 Key 接入、用户 Key 收件箱、按号码与 SIM 隔离的 Agent Inbox/OTP API、VibeSMS Skill，以及带离线队列和主动心跳的专用 Android Terminal。产品定义见 [docs/VIBESMS_PRODUCT.md](docs/VIBESMS_PRODUCT.md)。
 
 ## 当前范围
 
 - Android 端：VibeSMS Terminal 采集入站短信和来电事件，支持双卡、持久化离线队列、自动补发和主动心跳。
 - 服务端：Python 标准库 + SQLite，无第三方运行依赖。
-- 能力：用户 Key 签发/轮换/禁用、Android 首次绑定、设备独立上传密钥、Agent 隔离查询、OTP 长轮询、事件去重、主动心跳和响应式管理页面。
+- 能力：用户 Key 签发/轮换/禁用、Key 登录收件箱、Android 首次绑定、设备独立上传密钥、Agent 隔离查询、OTP 长轮询、事件去重、主动心跳和响应式管理页面。
 - 暂不包含：主动发短信、远程接听、MDM、集群调度和高可用。
 
 ## Android APK
@@ -24,6 +24,7 @@ VibeSMS Android Terminal v0.1.0 使用正式发布密钥签名，并通过 GitHu
 
 - 源码：[github.com/guanxiong/VibeSMS](https://github.com/guanxiong/VibeSMS)
 - 云端入口：[sms.shareapi.ai](https://sms.shareapi.ai)
+- Key 收件箱：[sms.shareapi.ai/inbox](https://sms.shareapi.ai/inbox/)
 
 ## 本地启动
 
@@ -34,7 +35,7 @@ cp .env.example config/local.env
 ./bin/run-server
 ```
 
-打开 <http://127.0.0.1:8787> 查看公开项目主页；管理控制台位于 <http://127.0.0.1:8787/admin/>，使用 `config/local.env` 中的管理员账号登录。服务健康检查：
+打开 <http://127.0.0.1:8787> 查看公开项目主页；用户使用 Key 登录 <http://127.0.0.1:8787/inbox/> 查看自己号码的短信与来电；管理控制台位于 <http://127.0.0.1:8787/admin/>，使用 `config/local.env` 中的管理员账号登录。服务健康检查：
 
 ```bash
 curl http://127.0.0.1:8787/api/health

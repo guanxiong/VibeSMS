@@ -25,7 +25,8 @@ VibeSMS 不提供公共共享号码池，不面向绕过第三方平台风控或
 3. APK 中输入 Key、选择 SIM 卡槽并确认手机号。
 4. 服务端绑定 Key、设备与 SIM，并为 APK 换发设备凭据。
 5. 用户把 Key 保存到 Agent 的 Secret 或环境变量。
-6. Agent 安装 VibeSMS Skill，查询在线状态并等待短信、验证码或来电记录。
+6. 用户也可用 Key 登录 `/inbox/`，直接查看该号码的终端状态、短信和来电。
+7. Agent 安装 VibeSMS Skill，查询在线状态并等待短信、验证码或来电记录。
 
 ## 凭据边界
 
@@ -51,6 +52,7 @@ VibeSMS 不提供公共共享号码池，不面向绕过第三方平台风控或
 - `POST /api/v1/bindings` 使用用户 Key 绑定 `device_id + sim_slot`，首次返回仅具上传权限的设备 Token。
 - `GET /api/v1/status` 返回绑定状态、设备在线状态和任务游标。
 - `GET /api/v1/inbox` 按 Key 绑定隔离读取短信与来电。
+- `/inbox/` 提供无需账户、仅当前标签页保存 Key 的用户只读收件箱。
 - `GET /api/v1/otp/wait` 支持最长 60 秒长轮询和 4–8 位验证码提取。
 - `skills/vibesms/` 提供 Secret-only、零第三方依赖的 Agent 工作流与客户端。
 
