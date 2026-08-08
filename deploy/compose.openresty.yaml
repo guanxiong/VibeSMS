@@ -1,3 +1,5 @@
+name: sms-gateway
+
 services:
   sms-gateway:
     build:
