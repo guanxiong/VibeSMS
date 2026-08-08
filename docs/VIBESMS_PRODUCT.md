@@ -15,6 +15,7 @@ VibeSMS 不提供公共共享号码池，不面向绕过第三方平台风控或
 - Android 接入：用户在 APK 首次输入 Key，服务端换发仅具上传权限的设备凭据
 - Agent 接入：用户 Key 只读取对应号码的短信、来电与验证码
 - APK 分发：GitHub Releases，必须使用签名 APK 并发布 SHA-256 校验值
+- 公开仓库：`https://github.com/guanxiong/VibeSMS`
 - 未来统一身份：Key 记录预留 `owner_ref`，后续可关联 `llm.shareapi.ai` 或 `panel.shareapi.ai` 的用户主体
 
 ## 最小用户流程
@@ -38,7 +39,7 @@ VibeSMS 不提供公共共享号码池，不面向绕过第三方平台风控或
 
 ## GitHub Release 要求
 
-- 仓库建立 GitHub remote 后再生成正式下载 URL。
+- 正式下载页：`https://github.com/guanxiong/VibeSMS/releases`。
 - CI 使用固定 JDK/Gradle 版本构建 release APK。
 - 签名密钥只存于 GitHub Actions Secrets，不进入仓库。
 - Release 同时发布 APK、版本说明和 `SHA256SUMS`。

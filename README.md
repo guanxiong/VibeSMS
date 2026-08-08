@@ -13,7 +13,10 @@
 
 ## Android APK
 
-VibeSMS Android Terminal 将使用签名 APK，并通过 GitHub Releases 分发。当前仓库尚未绑定 GitHub remote，正式下载链接会在 Android 工程和 Release workflow 建立后补充；不会提供未经构建和校验的占位 APK。
+VibeSMS Android Terminal 将使用签名 APK，并通过 [GitHub Releases](https://github.com/guanxiong/VibeSMS/releases) 分发。当前尚未发布 APK；正式 Release 会同时提供版本说明和 SHA-256 校验值，不提供未经签名和校验的占位包。
+
+- 源码：[github.com/guanxiong/VibeSMS](https://github.com/guanxiong/VibeSMS)
+- 云端入口：[sms.shareapi.ai](https://sms.shareapi.ai)
 
 ## 本地启动
 
@@ -64,3 +67,7 @@ Compose 会使用 Caddy 自动提供 HTTPS，并且不直接暴露应用的 `878
 ```bash
 python3 -m unittest -v
 ```
+
+## License
+
+本仓库目前公开可见，但尚未选择开源许可证。在许可证确定前，源码版权仍由作者保留。
