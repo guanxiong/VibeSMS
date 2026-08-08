@@ -89,6 +89,12 @@ class GatewayServerTest(unittest.TestCase):
             self.assertEqual(response.headers.get_content_type(), "image/jpeg")
             self.assertGreater(len(response.read()), 1000)
 
+        request = Request(self.base_url + "/apply/", method="HEAD")
+        with urlopen(request, timeout=3) as response:
+            self.assertEqual(response.status, 200)
+            self.assertEqual(response.headers.get_content_type(), "text/html")
+            self.assertEqual(response.read(), b"")
+
     def test_public_key_inbox_page_does_not_require_admin_auth(self):
         for path, expected in (
             ("/inbox/", "只看属于"),

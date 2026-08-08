@@ -929,7 +929,8 @@ class GatewayRequestHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self._security_headers()
         self.end_headers()
-        self.wfile.write(body)
+        if self.command != "HEAD":
+            self.wfile.write(body)
 
     def _provided_token(self) -> str:
         provided = self.headers.get("X-Gateway-Token", "")
@@ -954,7 +955,8 @@ class GatewayRequestHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self._security_headers()
         self.end_headers()
-        self.wfile.write(body)
+        if self.command != "HEAD":
+            self.wfile.write(body)
 
     def _device_authorized(self, payload: Dict[str, Any]) -> bool:
         provided = self._provided_token()
@@ -994,7 +996,8 @@ class GatewayRequestHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self._security_headers()
         self.end_headers()
-        self.wfile.write(body)
+        if self.command != "HEAD":
+            self.wfile.write(body)
 
     def _read_json(self) -> Dict[str, Any]:
         content_length = self.headers.get("Content-Length")
@@ -1228,6 +1231,9 @@ class GatewayRequestHandler(BaseHTTPRequestHandler):
             },
         )
 
+    def do_HEAD(self) -> None:
+        self.do_GET()
+
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
         path = parsed.path
@@ -1412,7 +1418,8 @@ class GatewayRequestHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self._security_headers()
         self.end_headers()
-        self.wfile.write(body)
+        if self.command != "HEAD":
+            self.wfile.write(body)
         return True
 
 
