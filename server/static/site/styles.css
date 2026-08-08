@@ -37,7 +37,9 @@ nav a:hover, nav a:focus-visible, .console-link:hover, .console-link:focus-visib
 .kicker, .section-index { margin: 0 0 24px; color: var(--green); font: 750 11px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .13em; }
 .kicker { display: flex; align-items: center; gap: 10px; }
 .kicker span { width: 7px; height: 7px; border-radius: 50%; background: var(--orange); }
-h1, h2, h3, p { text-wrap: balance; }
+h1, h2, h3 { line-break: strict; text-wrap: balance; }
+p { line-break: strict; text-wrap: pretty; }
+.keep-together { white-space: nowrap; }
 h1 { margin: 0; max-width: 700px; font-size: clamp(52px, 6.4vw, 88px); line-height: .98; letter-spacing: -.065em; font-weight: 780; }
 .lede { max-width: 590px; margin: 30px 0 0; color: var(--muted); font-size: 18px; line-height: 1.75; }
 .hero-actions { display: flex; align-items: center; gap: 12px; margin-top: 36px; }

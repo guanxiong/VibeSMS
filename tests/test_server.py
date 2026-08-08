@@ -66,6 +66,7 @@ class GatewayServerTest(unittest.TestCase):
         self.assertIn("让你的 Agent", homepage)
         self.assertIn('href="/admin/"', homepage)
         self.assertIn("VibeSMS-0.1.0.apk", homepage)
+        self.assertIn('class="keep-together">“短信列表”，</span>', homepage)
         self.assertNotIn("即将发布", homepage)
 
         with urlopen(self.base_url + "/site/styles.css", timeout=3) as response:
