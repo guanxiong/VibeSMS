@@ -132,7 +132,9 @@ pre { margin: 0; overflow-x: auto; padding: 30px 28px 35px; font: 500 12px/1.85 
 .install-command code { overflow-x: auto; padding: 15px 16px; color: var(--green-bright); font: 600 11px/1.6 ui-monospace, monospace; white-space: nowrap; }
 .install-command button { border: 0; border-left: 1px solid #3a473f; background: transparent; color: #9aa69d; padding: 0 14px; font: 700 9px ui-monospace, monospace; cursor: pointer; }
 .install-command button:hover { background: #19221c; color: var(--green-bright); }
-.secret-note { margin: 18px 28px 0; color: #95a198; font-size: 12px; line-height: 1.7; }
+.alternate-install { margin: 13px 28px 0; color: #738078; font-size: 11px; line-height: 1.7; }
+.alternate-install code { color: #a9b5ac; font-family: ui-monospace, monospace; }
+.secret-note { margin: 13px 28px 0; color: #95a198; font-size: 12px; line-height: 1.7; }
 .secret-note strong { color: #d9e4dc; }
 .secret-note code { color: var(--green-bright); font-family: ui-monospace, monospace; }
 .agent-prompts { margin-top: 27px; padding: 24px 28px 26px; border-top: 1px solid var(--terminal-line); }
@@ -212,7 +214,7 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--orange); outlin
   .skill-links { align-items: stretch; flex-direction: column; }
   .skill-links .button { width: 100%; }
   .skill-install-card { box-shadow: 7px 8px 0 var(--paper-deep); }
-  .install-label, .secret-note { margin-inline: 18px; }
+  .install-label, .alternate-install, .secret-note { margin-inline: 18px; }
   .install-command { grid-template-columns: 1fr; margin-inline: 18px; }
   .install-command button { min-height: 40px; border-top: 1px solid #3a473f; border-left: 0; }
   .agent-prompts, .agent-compatibility { padding-inline: 18px; }

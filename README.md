@@ -97,6 +97,12 @@ skills/vibesms/      可安装的 VibeSMS Agent Skill 与零依赖客户端
 npx skills add guanxiong/VibeSMS --skill vibesms -g -y
 ```
 
+也可以通过 GitHub CLI 的原生 Agent Skill 支持安装：
+
+```bash
+gh skill install guanxiong/VibeSMS
+```
+
 Skill 源码位于 [skills/vibesms](skills/vibesms)。安装后把用户 Key 保存为 `VIBESMS_KEY` Secret，再让 Agent 检查终端、读取短信/来电或等待验证码：
 
 ```bash
@@ -107,7 +113,8 @@ python3 skills/vibesms/scripts/vibesms.py wait-otp --after-id 0 --timeout 60
 
 生产使用时先通过 `status` 捕获游标，再触发外部短信，最后用该游标等待验证码，避免误读旧消息。不要把 Key 写入提示词、代码或 Git。
 
-- [Skills.sh 页面](https://skills.sh/guanxiong/VibeSMS/vibesms)
+- [GitHub Skill v1.0.0](https://github.com/guanxiong/VibeSMS/releases/tag/vibesms-skill-v1.0.0)
+- [Skills.sh 仓库页](https://skills.sh/guanxiong/vibesms)
 - [Agent Skills 开放规范](https://agentskills.io)
 
 ## 测试

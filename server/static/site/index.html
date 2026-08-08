@@ -149,6 +149,9 @@ npx skills add guanxiong/VibeSMS \
   --global \
   --yes
 
+<span class="code-muted"># Or install from GitHub's native Skill registry</span>
+gh skill install guanxiong/VibeSMS
+
 <span class="code-muted"># Then ask your agent</span>
 “记录当前游标，然后等待下一条验证码。”</code></pre>
         </div>
@@ -161,7 +164,8 @@ npx skills add guanxiong/VibeSMS \
           <p>VibeSMS Skill 会先记录事件游标，再等待任务开始后的新短信，避免把历史验证码误当成当前结果。</p>
           <div class="skill-links">
             <a class="button primary" href="https://github.com/guanxiong/VibeSMS/tree/main/skills/vibesms">查看 Skill 源码 <span aria-hidden="true">↗</span></a>
-            <a class="button secondary" href="https://skills.sh/guanxiong/VibeSMS/vibesms">在 Skills.sh 查看 <span aria-hidden="true">↗</span></a>
+            <a class="button secondary" href="https://github.com/guanxiong/VibeSMS/releases/tag/vibesms-skill-v1.0.0">GitHub Skill v1.0.0 <span aria-hidden="true">↗</span></a>
+            <a class="button secondary" href="https://skills.sh/guanxiong/vibesms">Skills.sh 仓库页 <span aria-hidden="true">↗</span></a>
           </div>
         </div>
         <div class="skill-install-card">
@@ -174,6 +178,7 @@ npx skills add guanxiong/VibeSMS \
             <code>npx skills add guanxiong/VibeSMS --skill vibesms -g -y</code>
             <button type="button" data-copy-install>复制命令</button>
           </div>
+          <p class="alternate-install">GitHub CLI：<code>gh skill install guanxiong/VibeSMS</code></p>
           <p class="secret-note"><strong>Secret：</strong>把 Key 保存为 <code>VIBESMS_KEY</code>，不要放进提示词、源码或聊天记录。</p>
           <div class="agent-prompts">
             <p>安装后可以直接对 Agent 说：</p>

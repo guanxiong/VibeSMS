@@ -71,6 +71,7 @@ class GatewayServerTest(unittest.TestCase):
         self.assertIn('data-code-tab="python"', homepage)
         self.assertIn('data-code-tab="skill"', homepage)
         self.assertIn("npx skills add guanxiong/VibeSMS", homepage)
+        self.assertIn("gh skill install guanxiong/VibeSMS", homepage)
         self.assertIn('id="skill"', homepage)
         self.assertNotIn("即将发布", homepage)
 
