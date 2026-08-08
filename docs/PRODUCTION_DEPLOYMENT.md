@@ -10,6 +10,7 @@
 - 证书：acme.sh + Namecheap DNS-01，自动续期并 reload OpenResty
 - 数据：`/opt/sms-gateway/data/gateway.db`
 - 备份：每天 UTC 03:17 生成 SQLite 在线备份，保留 30 天
+- 当前版本：`0.3.0`，已启用用户 Key、Android 绑定、Agent Inbox/OTP API
 
 常用操作：
 
@@ -49,6 +50,14 @@ SMS_GATEWAY_ADMIN_URL=https://sms.example.com ./bin/provision-device PIXEL-02 "�
 ```
 
 返回的 `token` 只显示一次。把它配置到对应 Android 设备的 `X-Gateway-Token` Header，不要复用到其他手机；再次执行同一设备 ID 会轮换旧密钥。
+
+## 用户 Key 与 Agent 接入
+
+打开 `https://sms.shareapi.ai/admin/`，在“号码与用户 Key”中填写手机号并签发。可选择预绑定已有设备与 SIM，也可留空等待 VibeSMS Terminal 首次绑定。Key 明文只显示一次，应立即保存到用户的 Agent Secret。
+
+管理端支持轮换、禁用和解绑；服务端数据库只保存 Key 的 SHA-256 哈希。Agent 将 Key 配置为 `VIBESMS_KEY`，使用仓库中的 `skills/vibesms/` 查询终端状态、读取 Inbox 或等待验证码。
+
+用户 Key 不能上传设备事件；首次绑定换取的设备 Token 不能读取 Inbox。一个启用中的手机号与一个设备 SIM 绑定最多各对应一个启用中的用户 Key。
 
 ## 无 USB 运行
 
