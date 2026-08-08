@@ -1,11 +1,18 @@
 ---
 name: vibesms
-description: Read a Key-scoped VibeSMS inbox, check an Android SMS terminal, and wait for verification codes or call events. Use when an agent needs to receive SMS/OTP or inspect inbound call records through sms.shareapi.ai or a self-hosted VibeSMS instance.
+description: Give an AI agent secure, Key-scoped access to SMS, one-time verification codes, Android terminal status, and inbound call records from a user-owned phone. Use when an agent needs to receive SMS/OTP, wait for a fresh verification code, check whether a VibeSMS terminal is online, or inspect call events through sms.shareapi.ai or a self-hosted VibeSMS instance.
 ---
 
 # VibeSMS
 
-Use the bundled client to access only the phone number assigned to `VIBESMS_KEY`.
+Connect an AI agent to a user-owned Android phone and SIM without exposing the whole SMS inbox. A single `VIBESMS_KEY` gives the agent access only to its assigned phone number and supports four focused actions:
+
+- Check whether the Android terminal is bound and online.
+- Capture an event cursor before an external service sends a message.
+- Wait for a fresh 4–8 digit verification code after that cursor.
+- Read Key-isolated SMS and inbound call events.
+
+The Android terminal uploads through a separate device credential, so the Agent Key cannot upload events or read another number. Use the bundled client for deterministic API calls.
 Resolve `scripts/vibesms.py` relative to this `SKILL.md`; do not assume the current working directory contains the skill.
 
 ## Preconditions

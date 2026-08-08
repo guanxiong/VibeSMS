@@ -489,6 +489,21 @@ class GatewayServerTest(unittest.TestCase):
         self.assertEqual(payload["phone_number"], "+8613600000004")
         self.assertEqual(payload["sim_slot"], 1)
 
+    def test_skill_distribution_metadata_is_descriptive(self):
+        root = Path(__file__).resolve().parents[1]
+        metadata = json.loads(
+            (root / "skills.sh.json").read_text(encoding="utf-8")
+        )
+        grouping = metadata["groupings"][0]
+
+        self.assertEqual(grouping["skills"], ["vibesms"])
+        self.assertIn("Android phone number", grouping["description"])
+
+        skill = (root / "skills" / "vibesms" / "SKILL.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("supports four focused actions", skill)
+
     def test_disabled_key_cannot_be_rotated_over_active_replacement(self):
         _, old_key = self.request(
             "/api/v1/admin/keys",

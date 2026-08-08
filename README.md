@@ -1,5 +1,7 @@
 # VibeSMS
 
+[![skills.sh](https://skills.sh/b/guanxiong/vibesms)](https://skills.sh/guanxiong/vibesms)
+
 把 Android 手机变成 Agent 可调用的短信与来电终端。用户使用一个 Key 接入自己的 SIM，设备将事件可靠上传到 `sms.shareapi.ai`，Agent 再基于同一 Key 隔离读取。
 
 当前版本已提供无账户 Key 接入、按号码与 SIM 隔离的 Agent Inbox/OTP API、VibeSMS Skill，以及带离线队列和主动心跳的专用 Android Terminal。产品定义见 [docs/VIBESMS_PRODUCT.md](docs/VIBESMS_PRODUCT.md)。
@@ -113,8 +115,9 @@ python3 skills/vibesms/scripts/vibesms.py wait-otp --after-id 0 --timeout 60
 
 生产使用时先通过 `status` 捕获游标，再触发外部短信，最后用该游标等待验证码，避免误读旧消息。不要把 Key 写入提示词、代码或 Git。
 
-- [GitHub Skill v1.0.0](https://github.com/guanxiong/VibeSMS/releases/tag/vibesms-skill-v1.0.0)
+- [GitHub Skill v1.0.1](https://github.com/guanxiong/VibeSMS/releases/tag/vibesms-skill-v1.0.1)
 - [Skills.sh 仓库页](https://skills.sh/guanxiong/vibesms)
+- [Skills.sh Skill 详情](https://skills.sh/guanxiong/vibesms/vibesms)
 - [Agent Skills 开放规范](https://agentskills.io)
 
 ## 测试

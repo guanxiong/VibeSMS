@@ -1,4 +1,4 @@
 interface:
   display_name: "VibeSMS"
-  short_description: "Wait for SMS, OTP, and call events with a VibeSMS Key"
-  default_prompt: "Use $vibesms to check my terminal and wait for the next verification code."
+  short_description: "Receive SMS, OTP, and call events from your Android phone"
+  default_prompt: "Use $vibesms to check my Android terminal, capture the current cursor, and wait for the next verification code."
