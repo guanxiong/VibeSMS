@@ -288,7 +288,8 @@ class GatewayServerTest(unittest.TestCase):
         )
         self.assertEqual(status, 200)
         self.assertTrue(repeated["already_bound"])
-        self.assertIsNone(repeated["device_token"])
+        self.assertTrue(repeated["device_token"])
+        self.assertNotEqual(repeated["device_token"], binding["device_token"])
 
         event = {
             "device_id": "PIXEL-02",
@@ -297,8 +298,13 @@ class GatewayServerTest(unittest.TestCase):
             "content": "Your verification code is 472 913",
             "sim_slot": 2,
         }
+        with self.assertRaises(HTTPError) as raised:
+            self.request(
+                "/api/v1/events", "POST", event, token=binding["device_token"]
+            )
+        self.assertEqual(raised.exception.code, 401)
         self.request(
-            "/api/v1/events", "POST", event, token=binding["device_token"]
+            "/api/v1/events", "POST", event, token=repeated["device_token"]
         )
         _, inbox = self.request("/api/v1/inbox", user_token=issued["key"])
         self.assertEqual(len(inbox["events"]), 1)

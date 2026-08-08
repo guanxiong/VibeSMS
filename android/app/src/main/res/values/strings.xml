@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">VibeSMS</string>
+    <string name="terminal_label">ANDROID SMS TERMINAL</string>
+    <string name="headline">把你的号码连接给 Agent</string>
+    <string name="intro">输入管理员签发的 Key，选择 SIM。Key 只用于绑定一次，不会保存在手机中。</string>
+    <string name="permissions_title">接收权限</string>
+    <string name="permissions_description">短信权限用于接收正文；电话与通话记录权限用于获取来电状态和号码。VibeSMS 不读取历史短信。</string>
+    <string name="grant_permissions">授予权限</string>
+    <string name="key_hint">vbs_live_…</string>
+    <string name="bind_terminal">绑定这张 SIM</string>
+    <string name="sync_now">立即同步</string>
+    <string name="bound_numbers">已绑定号码</string>
+    <string name="device_status">终端状态</string>
+    <string name="privacy_note">设备 Token 使用 Android Keystore 加密保存。离线事件保存在应用私有 SQLite 队列，联网后自动补发。</string>
+</resources>

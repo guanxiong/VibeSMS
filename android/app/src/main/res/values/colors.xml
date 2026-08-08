@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="paper">#F3F1E9</color>
+    <color name="paper_deep">#E7E3D7</color>
+    <color name="ink">#111713</color>
+    <color name="muted">#626A64</color>
+    <color name="green">#1D6B45</color>
+    <color name="lime">#B9F36A</color>
+    <color name="orange">#ED6A36</color>
+    <color name="white">#FFFFFF</color>
+</resources>

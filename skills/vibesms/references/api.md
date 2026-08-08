@@ -34,3 +34,5 @@ Success returns `status=received`, a 4–8 digit `code`, the new `cursor`, and t
 ## Security boundary
 
 The Agent API accepts only a user Key. Android event uploads use a separate device Token at `/api/v1/events` and `/api/v1/devices/heartbeat`; do not put device Tokens in Agent Secrets.
+
+Rebinding the same Key, device, and SIM rotates the device Token so an APK reinstall can recover without administrator intervention. The app must replace its stored device Token atomically.

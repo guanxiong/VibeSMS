@@ -5,4 +5,10 @@ __pycache__/
 config/local.env
 data/
 artifacts/
-
+.android-sdk/
+.gradle/
+android/.gradle/
+android/local.properties
+android/app/build/
+android/build/
+android/signing/

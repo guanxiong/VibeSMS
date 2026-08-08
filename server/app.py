@@ -479,29 +479,24 @@ class GatewayStore:
                        WHERE key_id = ?""",
                     (device_id, sim_slot, now, row["key_id"]),
                 )
-            credential = connection.execute(
-                "SELECT enabled FROM device_credentials WHERE device_id = ?", (device_id,)
-            ).fetchone()
-            device_token: Optional[str] = None
-            if not credential or credential["enabled"] != 1:
-                device_token = secrets.token_urlsafe(32)
-                connection.execute(
-                    """INSERT INTO device_credentials (
-                        device_id, label, token_hash, enabled, created_at, updated_at
-                    ) VALUES (?, ?, ?, 1, ?, ?)
-                    ON CONFLICT(device_id) DO UPDATE SET
-                        label = excluded.label,
-                        token_hash = excluded.token_hash,
-                        enabled = 1,
-                        updated_at = excluded.updated_at""",
-                    (
-                        device_id,
-                        "VibeSMS " + row["phone_number"],
-                        token_digest(device_token),
-                        now,
-                        now,
-                    ),
-                )
+            device_token = secrets.token_urlsafe(32)
+            connection.execute(
+                """INSERT INTO device_credentials (
+                    device_id, label, token_hash, enabled, created_at, updated_at
+                ) VALUES (?, ?, ?, 1, ?, ?)
+                ON CONFLICT(device_id) DO UPDATE SET
+                    label = excluded.label,
+                    token_hash = excluded.token_hash,
+                    enabled = 1,
+                    updated_at = excluded.updated_at""",
+                (
+                    device_id,
+                    "VibeSMS " + row["phone_number"],
+                    token_digest(device_token),
+                    now,
+                    now,
+                ),
+            )
         return {
             "key_id": row["key_id"],
             "phone_number": row["phone_number"],

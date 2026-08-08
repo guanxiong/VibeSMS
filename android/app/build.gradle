@@ -1,0 +1,62 @@
+plugins {
+    id "com.android.application"
+}
+
+android {
+    namespace = "ai.shareapi.vibesms"
+    compileSdk = 36
+
+    defaultConfig {
+        applicationId = "ai.shareapi.vibesms"
+        minSdk = 29
+        targetSdk = 36
+        versionCode = 1
+        versionName = "0.1.0"
+    }
+
+    signingConfigs {
+        release {
+            def keystorePath = System.getenv("VIBESMS_KEYSTORE_PATH")
+            if (keystorePath) {
+                storeFile = rootProject.file(keystorePath)
+                storePassword = System.getenv("VIBESMS_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("VIBESMS_KEY_ALIAS") ?: "vibesms"
+                keyPassword = System.getenv("VIBESMS_KEY_PASSWORD")
+                enableV1Signing = true
+                enableV2Signing = true
+                enableV3Signing = true
+                enableV4Signing = true
+            }
+        }
+    }
+
+    buildTypes {
+        debug {
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
+        }
+        release {
+            minifyEnabled = false
+            shrinkResources = false
+            if (System.getenv("VIBESMS_KEYSTORE_PATH")) {
+                signingConfig = signingConfigs.release
+            }
+            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    buildFeatures {
+        buildConfig = true
+    }
+
+    lint {
+        abortOnError = true
+        checkReleaseBuilds = true
+        warningsAsErrors = false
+    }
+}
