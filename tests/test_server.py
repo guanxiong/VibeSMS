@@ -51,6 +51,7 @@ class GatewayServerTest(unittest.TestCase):
         status, payload = self.request("/api/health")
         self.assertEqual(status, 200)
         self.assertTrue(payload["ok"])
+        self.assertEqual(payload["name"], "VibeSMS")
         with self.assertRaises(HTTPError) as raised:
             urlopen(self.base_url + "/", timeout=3)
         self.assertEqual(raised.exception.code, 401)
@@ -58,7 +59,7 @@ class GatewayServerTest(unittest.TestCase):
         request = Request(self.base_url + "/", headers={"Authorization": "Basic " + credentials})
         with urlopen(request, timeout=3) as response:
             self.assertEqual(response.status, 200)
-            self.assertIn("短信与来电终端", response.read().decode("utf-8"))
+            self.assertIn("VibeSMS", response.read().decode("utf-8"))
 
     def test_rejects_unauthorized_upload(self):
         with self.assertRaises(HTTPError) as raised:

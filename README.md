@@ -1,6 +1,8 @@
-# SMS Gateway MVP
+# VibeSMS
 
-把一台双卡 Android 手机作为短信与来电边缘终端，将事件可靠上传到自部署服务，并在本地管理页面集中查看。
+把 Android 手机变成 Agent 可调用的短信与来电终端。用户使用一个 Key 接入自己的 SIM，设备将事件可靠上传到 `sms.shareapi.ai`，Agent 再基于同一 Key 隔离读取。
+
+当前版本是 VibeSMS 的单终端基础设施 MVP；无账户 Key 接入、专用 Android Terminal 与 Agent Skill 在 MVP-004 实现。产品定义见 [docs/VIBESMS_PRODUCT.md](docs/VIBESMS_PRODUCT.md)。
 
 ## 当前范围
 
@@ -8,6 +10,10 @@
 - 服务端：Python 标准库 + SQLite，无第三方运行依赖。
 - 能力：设备独立上传密钥、管理端认证、事件去重、主动心跳、在线/离线状态、短信/来电查询、响应式管理页面。
 - 暂不包含：主动发短信、远程接听、MDM、集群调度和高可用。
+
+## Android APK
+
+VibeSMS Android Terminal 将使用签名 APK，并通过 GitHub Releases 分发。当前仓库尚未绑定 GitHub remote，正式下载链接会在 Android 工程和 Release workflow 建立后补充；不会提供未经构建和校验的占位 APK。
 
 ## 本地启动
 

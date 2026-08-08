@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Dependency-free SMS Gateway MVP control plane.
+"""Dependency-free VibeSMS control plane.
 
 The HTTP API accepts normalized Android events, persists them in SQLite, updates
 the device registry, and serves a small local operations dashboard.
@@ -24,6 +24,7 @@ from urllib.parse import parse_qs, urlparse
 
 
 VERSION = "0.2.0"
+PRODUCT_NAME = "VibeSMS"
 MAX_BODY_BYTES = 1024 * 1024
 STATIC_DIR = Path(__file__).with_name("static")
 UNKNOWN_CALL_TYPES = {"", "0", "unknown", "unknown call", "未知", "未知通话"}
@@ -453,7 +454,7 @@ class GatewayRequestHandler(BaseHTTPRequestHandler):
     def _admin_unauthorized(self) -> None:
         body = json.dumps({"ok": False, "error": "admin authentication required"}).encode("utf-8")
         self.send_response(HTTPStatus.UNAUTHORIZED)
-        self.send_header("WWW-Authenticate", 'Basic realm="SMS Gateway Admin", charset="UTF-8"')
+        self.send_header("WWW-Authenticate", 'Basic realm="VibeSMS Admin", charset="UTF-8"')
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
         self._security_headers()
@@ -541,7 +542,10 @@ class GatewayRequestHandler(BaseHTTPRequestHandler):
         path = parsed.path
         query = parse_qs(parsed.query)
         if path == "/api/health":
-            self._json(HTTPStatus.OK, {"ok": True, "version": VERSION, **self.gateway_server.store.stats()})
+            self._json(
+                HTTPStatus.OK,
+                {"ok": True, "name": PRODUCT_NAME, "version": VERSION, **self.gateway_server.store.stats()},
+            )
             return
         if not self._admin_authorized():
             self._admin_unauthorized()
@@ -645,7 +649,7 @@ def create_server(
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Run the SMS Gateway MVP server")
+    parser = argparse.ArgumentParser(description="Run the VibeSMS server")
     parser.add_argument("--host", default=os.environ.get("SMS_GATEWAY_HOST", "127.0.0.1"))
     parser.add_argument("--port", type=int, default=int(os.environ.get("SMS_GATEWAY_PORT", "8787")))
     parser.add_argument("--database", default=os.environ.get("SMS_GATEWAY_DB", "data/gateway.db"))
@@ -675,8 +679,8 @@ def main() -> None:
         int(os.environ.get("DEVICE_HEARTBEAT_SECONDS", "300")),
     )
     print(
-        "SMS Gateway MVP %s listening on http://%s:%s (db=%s)"
-        % (VERSION, args.host, args.port, args.database),
+        "%s %s listening on http://%s:%s (db=%s)"
+        % (PRODUCT_NAME, VERSION, args.host, args.port, args.database),
         flush=True,
     )
     try:

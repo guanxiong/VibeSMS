@@ -1,2 +1,1 @@
-"""SMS Gateway MVP server package."""
-
+"""VibeSMS server package."""
