@@ -1,4 +1,12 @@
 const state = { type: "", stats: { sms: 0, call: 0 } };
+const deviceInput = document.querySelector("#key-device");
+const simSelect = document.querySelector("#key-sim");
+
+function syncSimSlotState() {
+  const hasPreboundDevice = Boolean(deviceInput.value.trim());
+  simSelect.disabled = !hasPreboundDevice;
+  if (!hasPreboundDevice) simSelect.value = "";
+}
 
 const escapeHtml = (value = "") => String(value).replace(/[&<>'"]/g, char => ({
   "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;"
@@ -130,6 +138,7 @@ async function refresh() {
 }
 
 document.querySelector("#refresh").addEventListener("click", refresh);
+deviceInput.addEventListener("input", syncSimSlotState);
 document.querySelectorAll(".filter").forEach(button => button.addEventListener("click", () => {
   document.querySelectorAll(".filter").forEach(item => item.classList.remove("active"));
   button.classList.add("active");
@@ -155,6 +164,7 @@ document.querySelector("#key-form").addEventListener("submit", async event => {
     const result = await postJson("/api/v1/admin/keys", payload);
     showKeySecret(result.key, `${payload.phone_number} · 新 Key`);
     event.currentTarget.reset();
+    syncSimSlotState();
     await refresh();
   } catch (error) {
     window.alert(`签发失败：${error.message}`);
@@ -196,4 +206,5 @@ document.querySelector("#copy-key").addEventListener("click", async event => {
 });
 
 refresh();
+syncSimSlotState();
 setInterval(refresh, 5000);

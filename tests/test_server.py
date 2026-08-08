@@ -109,6 +109,19 @@ class GatewayServerTest(unittest.TestCase):
             urlopen(self.base_url + "/api/v1/admin/keys", timeout=3)
         self.assertEqual(raised.exception.code, 401)
 
+    def test_admin_sim_slot_only_activates_for_prebinding(self):
+        root = Path(__file__).resolve().parents[1] / "server" / "static" / "admin"
+        html = (root / "index.html").read_text(encoding="utf-8")
+        css = (root / "styles.css").read_text(encoding="utf-8")
+        javascript = (root / "app.js").read_text(encoding="utf-8")
+
+        self.assertIn('class="sim-field"', html)
+        self.assertIn('aria-describedby="key-sim-help" disabled required', html)
+        self.assertIn("由 APK 首次绑定选择", html)
+        self.assertIn(".key-form .sim-field", css)
+        self.assertIn("function syncSimSlotState()", javascript)
+        self.assertIn("simSelect.disabled = !hasPreboundDevice", javascript)
+
     def test_unknown_public_path_is_not_an_auth_prompt(self):
         with self.assertRaises(HTTPError) as raised:
             urlopen(self.base_url + "/missing", timeout=3)

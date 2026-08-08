@@ -39,7 +39,15 @@
             <label>标签<input id="key-label" name="label" placeholder="客户或用途"></label>
             <label>Owner Ref<input id="key-owner" name="owner_ref" placeholder="panel:user-id（可选）"></label>
             <label>预绑定设备<input id="key-device" name="device_id" placeholder="留空则由 APK 首次绑定"></label>
-            <label>SIM 卡槽<select id="key-sim" name="sim_slot"><option value="1">SIM 1</option><option value="2">SIM 2</option></select></label>
+            <label class="sim-field">
+              <span>预绑定 SIM 卡槽</span>
+              <select id="key-sim" name="sim_slot" aria-describedby="key-sim-help" disabled required>
+                <option value="" selected>由 APK 首次绑定选择</option>
+                <option value="1">SIM 1</option>
+                <option value="2">SIM 2</option>
+              </select>
+              <small id="key-sim-help" class="field-help">填写预绑定设备后启用；未填写时由 Android 终端选择实际卡槽。</small>
+            </label>
             <button class="primary-action" type="submit">签发 Key</button>
           </form>
           <div>
