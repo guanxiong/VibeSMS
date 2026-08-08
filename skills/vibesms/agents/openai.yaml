@@ -1,0 +1,4 @@
+interface:
+  display_name: "VibeSMS"
+  short_description: "Wait for SMS, OTP, and call events with a VibeSMS Key"
+  default_prompt: "Use $vibesms to check my terminal and wait for the next verification code."

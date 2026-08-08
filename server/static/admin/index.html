@@ -25,6 +25,32 @@
         <article><span>短信</span><strong id="sms-count">0</strong></article>
         <article><span>来电</span><strong id="call-count">0</strong></article>
         <article><span>在线</span><strong id="online-count">0</strong></article>
+        <article><span>用户 Key</span><strong id="key-count">0</strong></article>
+      </section>
+
+      <section>
+        <div class="section-title">
+          <div><p class="eyebrow">ACCESS</p><h2>号码与用户 Key</h2></div>
+          <span class="section-hint">Key 明文仅显示一次</span>
+        </div>
+        <div class="key-console">
+          <form id="key-form" class="key-form">
+            <label>手机号<input id="key-phone" name="phone_number" inputmode="tel" placeholder="+8613800000000" required></label>
+            <label>标签<input id="key-label" name="label" placeholder="客户或用途"></label>
+            <label>Owner Ref<input id="key-owner" name="owner_ref" placeholder="panel:user-id（可选）"></label>
+            <label>预绑定设备<input id="key-device" name="device_id" placeholder="留空则由 APK 首次绑定"></label>
+            <label>SIM 卡槽<select id="key-sim" name="sim_slot"><option value="1">SIM 1</option><option value="2">SIM 2</option></select></label>
+            <button class="primary-action" type="submit">签发 Key</button>
+          </form>
+          <div>
+            <div id="key-secret" class="key-secret" hidden>
+              <div><span>仅显示一次</span><strong id="key-secret-label">新 Key</strong></div>
+              <code id="key-secret-value"></code>
+              <button id="copy-key" type="button">复制 Key</button>
+            </div>
+            <div id="keys" class="keys"><p class="empty">尚未签发用户 Key</p></div>
+          </div>
+        </div>
       </section>
 
       <section>

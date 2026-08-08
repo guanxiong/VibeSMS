@@ -61,3 +61,4 @@
 - 2026-08-08：公开仓库 `guanxiong/VibeSMS` 已创建，`main` 已推送并绑定 `origin`，仓库主页指向 `sms.shareapi.ai`；Release 保持为空，等待签名 Android APK 和校验值。
 - 2026-08-08：公开项目主页与管理控制台完成分离：`/` 无需登录，`/admin/` 与管理 API 保持 Basic Auth；静态资源按 `site/`、`admin/` 分层，未完成的 Key Inbox API 均明确标注为 MVP-004 规划能力。
 - 2026-08-08：成熟项目主页已部署到 `sms.shareapi.ai`；生产验收为首页/样式/分享图 200、管理台未认证 401/认证 200，容器健康且原有 1 台设备与 12 条事件完整保留。
+- 2026-08-08：MVP-004 服务端纵向切片完成：用户 Key 签发/轮换/禁用/解绑、首次设备与 SIM 绑定、上传凭据交换、隔离 Inbox、状态游标、OTP 长轮询和 VibeSMS Skill；17 项自动化测试通过。

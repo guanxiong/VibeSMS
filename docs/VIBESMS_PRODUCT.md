@@ -45,6 +45,15 @@ VibeSMS 不提供公共共享号码池，不面向绕过第三方平台风控或
 - Release 同时发布 APK、版本说明和 `SHA256SUMS`。
 - Android App 内展示版本、API 域名、绑定号码和最后上传状态。
 
+## 已实现的 Agent API
+
+- 管理员可在 `/admin/` 签发、轮换、禁用和解绑用户 Key，明文只显示一次。
+- `POST /api/v1/bindings` 使用用户 Key 绑定 `device_id + sim_slot`，首次返回仅具上传权限的设备 Token。
+- `GET /api/v1/status` 返回绑定状态、设备在线状态和任务游标。
+- `GET /api/v1/inbox` 按 Key 绑定隔离读取短信与来电。
+- `GET /api/v1/otp/wait` 支持最长 60 秒长轮询和 4–8 位验证码提取。
+- `skills/vibesms/` 提供 Secret-only、零第三方依赖的 Agent 工作流与客户端。
+
 ## MVP-004 目标目录
 
 新增实现按产品边界进入独立目录，避免把移动端、Agent 端和服务端混在一起：

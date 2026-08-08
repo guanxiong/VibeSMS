@@ -16,6 +16,54 @@ async function getJson(url) {
   return response.json();
 }
 
+async function postJson(url, payload = {}) {
+  const response = await fetch(url, {
+    method: "POST",
+    cache: "no-store",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(result.error || `${response.status} ${response.statusText}`);
+  return result;
+}
+
+function showKeySecret(value, label) {
+  const secret = document.querySelector("#key-secret");
+  document.querySelector("#key-secret-label").textContent = label;
+  document.querySelector("#key-secret-value").textContent = value;
+  document.querySelector("#copy-key").textContent = "复制 Key";
+  secret.hidden = false;
+  secret.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+function renderKeys(keys) {
+  const container = document.querySelector("#keys");
+  document.querySelector("#key-count").textContent = keys.filter(key => key.enabled).length;
+  if (!keys.length) {
+    container.innerHTML = '<p class="empty">尚未签发用户 Key</p>';
+    return;
+  }
+  container.innerHTML = keys.map(key => `
+    <article class="key-card ${key.enabled ? "" : "is-disabled"}">
+      <div class="key-card-head">
+        <div><strong>${escapeHtml(key.phone_number)}</strong><span>${escapeHtml(key.label || key.key_id)}</span></div>
+        <span class="key-state">${key.enabled ? "ACTIVE" : "DISABLED"}</span>
+      </div>
+      <dl>
+        <div><dt>Key ID</dt><dd class="mono">${escapeHtml(key.key_id)}</dd></div>
+        <div><dt>Owner</dt><dd>${escapeHtml(key.owner_ref || "—")}</dd></div>
+        <div><dt>绑定</dt><dd>${key.device_id ? `${escapeHtml(key.device_id)} · SIM${key.sim_slot}` : "等待 APK 绑定"}</dd></div>
+        <div><dt>最后使用</dt><dd>${formatTime(key.last_accessed)}</dd></div>
+      </dl>
+      <div class="key-actions">
+        <button type="button" data-key-action="rotate" data-key-id="${escapeHtml(key.key_id)}">轮换</button>
+        ${key.device_id ? `<button type="button" data-key-action="unbind" data-key-id="${escapeHtml(key.key_id)}">解绑</button>` : ""}
+        ${key.enabled ? `<button class="danger" type="button" data-key-action="disable" data-key-id="${escapeHtml(key.key_id)}">禁用</button>` : ""}
+      </div>
+    </article>`).join("");
+}
+
 function renderDevices(devices) {
   const container = document.querySelector("#devices");
   document.querySelector("#device-count").textContent = devices.length;
@@ -65,12 +113,14 @@ async function refresh() {
   const statusText = document.querySelector("#status-text");
   try {
     const suffix = state.type ? `?limit=200&type=${encodeURIComponent(state.type)}` : "?limit=200";
-    const [devices, events] = await Promise.all([
+    const [devices, events, keys] = await Promise.all([
       getJson("/api/v1/devices"),
-      getJson(`/api/v1/events${suffix}`)
+      getJson(`/api/v1/events${suffix}`),
+      getJson("/api/v1/admin/keys")
     ]);
     renderDevices(devices.devices);
     renderEvents(events.events);
+    renderKeys(keys.keys);
     statusDot.className = "online";
     statusText.textContent = "服务正常";
   } catch (error) {
@@ -86,6 +136,64 @@ document.querySelectorAll(".filter").forEach(button => button.addEventListener("
   state.type = button.dataset.type;
   refresh();
 }));
+
+document.querySelector("#key-form").addEventListener("submit", async event => {
+  event.preventDefault();
+  const submit = event.currentTarget.querySelector("button[type=submit]");
+  const deviceId = document.querySelector("#key-device").value.trim();
+  const payload = {
+    phone_number: document.querySelector("#key-phone").value.trim(),
+    label: document.querySelector("#key-label").value.trim(),
+    owner_ref: document.querySelector("#key-owner").value.trim()
+  };
+  if (deviceId) {
+    payload.device_id = deviceId;
+    payload.sim_slot = Number(document.querySelector("#key-sim").value);
+  }
+  submit.disabled = true;
+  try {
+    const result = await postJson("/api/v1/admin/keys", payload);
+    showKeySecret(result.key, `${payload.phone_number} · 新 Key`);
+    event.currentTarget.reset();
+    await refresh();
+  } catch (error) {
+    window.alert(`签发失败：${error.message}`);
+  } finally {
+    submit.disabled = false;
+  }
+});
+
+document.querySelector("#keys").addEventListener("click", async event => {
+  const button = event.target.closest("button[data-key-action]");
+  if (!button) return;
+  const action = button.dataset.keyAction;
+  const keyId = button.dataset.keyId;
+  const prompts = {
+    rotate: "轮换后旧 Key 会立即失效，继续吗？",
+    disable: "禁用后 Agent 将无法读取此号码，继续吗？",
+    unbind: "解绑后需要 Android 重新绑定，继续吗？"
+  };
+  if (!window.confirm(prompts[action])) return;
+  button.disabled = true;
+  try {
+    const result = await postJson(`/api/v1/admin/keys/${encodeURIComponent(keyId)}/${action}`);
+    if (action === "rotate") showKeySecret(result.key, `${keyId} · 已轮换`);
+    await refresh();
+  } catch (error) {
+    window.alert(`操作失败：${error.message}`);
+  } finally {
+    button.disabled = false;
+  }
+});
+
+document.querySelector("#copy-key").addEventListener("click", async event => {
+  try {
+    await navigator.clipboard.writeText(document.querySelector("#key-secret-value").textContent);
+    event.currentTarget.textContent = "已复制";
+  } catch (_error) {
+    window.alert("复制失败，请手工复制并立即保存到 Secret 管理器。");
+  }
+});
 
 refresh();
 setInterval(refresh, 5000);

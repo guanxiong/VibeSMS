@@ -36,7 +36,7 @@
     <main id="main">
       <section class="hero">
         <div class="hero-copy">
-          <p class="kicker"><span></span> OPEN SOURCE · BRING YOUR OWN SIM</p>
+          <p class="kicker"><span></span> PUBLIC REPOSITORY · BRING YOUR OWN SIM</p>
           <h1>让你的 Agent，<br>安全接收手机短信。</h1>
           <p class="lede">把一台 Android 手机变成可靠的短信与来电终端。一个 Key 绑定一个号码，Agent 只读取属于它的事件。</p>
           <div class="hero-actions">
@@ -97,16 +97,16 @@
           <li>
             <span class="step-number">03</span>
             <div><h3>配置 Agent Skill</h3><p>Key 放入 Secret，Agent 即可等待新短信、提取验证码或读取来电状态。</p></div>
-            <span class="step-state">API DESIGN</span>
+            <span class="step-state ready">API READY</span>
           </li>
         </ol>
       </section>
 
       <section id="api" class="section api-section">
         <div class="api-copy">
-          <p class="section-index">02 / PLANNED AGENT API</p>
+          <p class="section-index">02 / AGENT API</p>
           <h2>不是一个“短信列表”，<br>而是一条清晰的接码会话。</h2>
-          <p>MVP-004 将用游标确保 Agent 只处理任务开始后到达的新事件。每次读取受 Key 隔离，并保留最小审计记录。</p>
+          <p>游标确保 Agent 只处理任务开始后到达的新事件。每次读取受 Key 隔离，并保留最小审计记录。</p>
           <ul class="check-list">
             <li>长轮询等待，无需高频请求</li>
             <li>短信、来电和心跳统一事件模型</li>
@@ -133,13 +133,13 @@ curl --get <span class="code-string">https://sms.shareapi.ai/api/v1/otp/wait</sp
 
       <section id="security" class="section security-section">
         <div class="security-heading">
-          <p class="section-index">03 / TARGET SECURITY MODEL</p>
+          <p class="section-index">03 / SECURITY MODEL</p>
           <h2>一个简单的 Key，<br>三条明确的安全边界。</h2>
         </div>
         <div class="security-lines">
-          <article><span>01</span><div><h3>Key 只显示一次</h3><p>现有设备凭据已仅保存 SHA-256 哈希；用户 Key 将沿用同一原则并支持轮换。</p></div></article>
-          <article><span>02</span><div><h3>设备只能上传</h3><p>当前设备凭据已按设备隔离；专用 APK 将通过首次绑定换取仅上传凭据。</p></div></article>
-          <article><span>03</span><div><h3>Agent 只能读自己的号码</h3><p>MVP-004 将在 Key 与手机号绑定后，于查询和数据访问两层拒绝跨 Key 读取。</p></div></article>
+          <article><span>01</span><div><h3>Key 只显示一次</h3><p>用户 Key 与设备凭据均仅保存 SHA-256 哈希，泄露后可立即轮换或禁用。</p></div></article>
+          <article><span>02</span><div><h3>设备只能上传</h3><p>首次绑定换取独立设备凭据；设备凭据可上传事件，但不能读取 Inbox。</p></div></article>
+          <article><span>03</span><div><h3>Agent 只能读自己的号码</h3><p>Key 与设备及 SIM 卡槽绑定，查询层只返回该绑定下的短信与来电。</p></div></article>
         </div>
       </section>
 
@@ -151,8 +151,9 @@ curl --get <span class="code-string">https://sms.shareapi.ai/api/v1/otp/wait</sp
         <div class="status-list">
           <p><span class="done">DONE</span> 公网 HTTPS、设备心跳、断网补发</p>
           <p><span class="done">DONE</span> 独立设备密钥与管理认证</p>
+          <p><span class="done">DONE</span> Key Inbox API 与 Agent Skill</p>
           <p><span class="active">BUILDING</span> VibeSMS Android Terminal</p>
-          <p><span>NEXT</span> Key Inbox API 与 Agent Skill</p>
+          <p><span>NEXT</span> 签名 APK 与 GitHub Release</p>
         </div>
       </section>
 

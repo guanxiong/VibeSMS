@@ -15,6 +15,7 @@ import re
 import secrets
 import sqlite3
 import threading
+import time
 from datetime import datetime, timezone
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -23,11 +24,16 @@ from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import parse_qs, urlparse
 
 
-VERSION = "0.2.0"
+VERSION = "0.3.0"
 PRODUCT_NAME = "VibeSMS"
 MAX_BODY_BYTES = 1024 * 1024
 STATIC_DIR = Path(__file__).with_name("static")
 UNKNOWN_CALL_TYPES = {"", "0", "unknown", "unknown call", "未知", "未知通话"}
+USER_KEY_PREFIX = "vbs_live_"
+
+
+class ConflictError(ValueError):
+    """The request is valid but conflicts with an existing active binding."""
 
 
 def utc_now() -> str:
@@ -59,6 +65,30 @@ def token_digest(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
+def normalize_phone_number(value: Any) -> str:
+    phone_number = re.sub(r"[\s()-]", "", clean_text(value, 32))
+    if not re.fullmatch(r"\+?[0-9]{5,20}", phone_number):
+        raise ValueError("phone_number must contain 5 to 20 digits with an optional leading +")
+    return phone_number
+
+
+def extract_otp(content: str) -> str:
+    candidates: List[Tuple[int, int, str]] = []
+    for match in re.finditer(r"(?<!\d)(\d(?:[ -]?\d){3,7})(?!\d)", content):
+        code = re.sub(r"\D", "", match.group(1))
+        if 4 <= len(code) <= 8:
+            context = content[max(0, match.start() - 32) : match.end() + 32].lower()
+            score = 10 if re.search(r"code|otp|verification|验证码|校验码|动态码", context) else 0
+            if len(code) == 6:
+                score += 3
+            elif len(code) in (4, 8):
+                score += 1
+            if len(code) == 4 and 1900 <= int(code) <= 2099:
+                score -= 4
+            candidates.append((score, -match.start(), code))
+    return max(candidates)[2] if candidates else ""
+
+
 def infer_event_type(payload: Dict[str, Any], call_type: str) -> str:
     requested = clean_text(first_value(payload, "event_type", "type"), 32).lower()
     if requested in {"sms", "call", "heartbeat", "test"}:
@@ -82,6 +112,18 @@ def normalize_sim_slot(value: Any) -> Optional[int]:
     if number == 0:
         return 1
     return number if number in (1, 2) else None
+
+
+def api_sim_slot(value: Any) -> Optional[int]:
+    if value is None or clean_text(value, 16) == "":
+        return None
+    try:
+        sim_slot = int(clean_text(value, 16))
+    except ValueError as exc:
+        raise ValueError("sim_slot must be 1 or 2") from exc
+    if sim_slot not in (1, 2):
+        raise ValueError("sim_slot must be 1 or 2")
+    return sim_slot
 
 
 def normalize_event(payload: Dict[str, Any]) -> Dict[str, Any]:
@@ -194,6 +236,25 @@ class GatewayStore:
             updated_at TEXT NOT NULL,
             last_authenticated TEXT NOT NULL DEFAULT ''
         );
+        CREATE TABLE IF NOT EXISTS user_keys (
+            key_id TEXT PRIMARY KEY,
+            label TEXT NOT NULL DEFAULT '',
+            phone_number TEXT NOT NULL,
+            owner_ref TEXT NOT NULL DEFAULT '',
+            device_id TEXT NOT NULL DEFAULT '',
+            sim_slot INTEGER,
+            token_hash TEXT NOT NULL UNIQUE,
+            enabled INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            last_accessed TEXT NOT NULL DEFAULT '',
+            CHECK (sim_slot IS NULL OR sim_slot IN (1, 2))
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_user_keys_active_phone
+            ON user_keys(phone_number) WHERE enabled = 1;
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_user_keys_active_binding
+            ON user_keys(device_id, sim_slot)
+            WHERE enabled = 1 AND device_id != '' AND sim_slot IS NOT NULL;
         """
         with self._lock, self._connect() as connection:
             connection.executescript(schema)
@@ -269,6 +330,186 @@ class GatewayStore:
                    ORDER BY c.device_id"""
             ).fetchall()
         return [dict(row) for row in rows]
+
+    @staticmethod
+    def _new_user_token() -> str:
+        return USER_KEY_PREFIX + secrets.token_urlsafe(32)
+
+    @staticmethod
+    def _new_key_id() -> str:
+        return "vk_" + secrets.token_hex(8)
+
+    def issue_user_key(
+        self,
+        phone_number: str,
+        label: str = "",
+        owner_ref: str = "",
+        device_id: str = "",
+        sim_slot: Optional[int] = None,
+    ) -> Tuple[str, str]:
+        phone_number = normalize_phone_number(phone_number)
+        device_id = clean_text(device_id, 128)
+        if device_id and sim_slot not in (1, 2):
+            raise ValueError("sim_slot must be 1 or 2 when device_id is provided")
+        if not device_id:
+            sim_slot = None
+        key_id = self._new_key_id()
+        token = self._new_user_token()
+        now = utc_now()
+        try:
+            with self._lock, self._connect() as connection:
+                connection.execute(
+                    """INSERT INTO user_keys (
+                        key_id, label, phone_number, owner_ref, device_id, sim_slot,
+                        token_hash, enabled, created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)""",
+                    (
+                        key_id,
+                        clean_text(label, 128),
+                        phone_number,
+                        clean_text(owner_ref, 256),
+                        device_id,
+                        sim_slot,
+                        token_digest(token),
+                        now,
+                        now,
+                    ),
+                )
+        except sqlite3.IntegrityError as exc:
+            raise ConflictError("phone number or device SIM already has an active key") from exc
+        return key_id, token
+
+    def list_user_keys(self) -> List[Dict[str, Any]]:
+        with self._lock, self._connect() as connection:
+            rows = connection.execute(
+                """SELECT key_id, label, phone_number, owner_ref, device_id, sim_slot,
+                          enabled, created_at, updated_at, last_accessed
+                   FROM user_keys ORDER BY created_at DESC"""
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    def authenticate_user_key(self, token: str) -> Optional[Dict[str, Any]]:
+        if not token or not token.startswith(USER_KEY_PREFIX):
+            return None
+        digest = token_digest(token)
+        with self._lock, self._connect() as connection:
+            row = connection.execute(
+                """SELECT key_id, label, phone_number, owner_ref, device_id, sim_slot,
+                          enabled, created_at, updated_at
+                   FROM user_keys WHERE token_hash = ? AND enabled = 1""",
+                (digest,),
+            ).fetchone()
+            if not row:
+                return None
+            connection.execute(
+                "UPDATE user_keys SET last_accessed = ? WHERE key_id = ?",
+                (utc_now(), row["key_id"]),
+            )
+        return dict(row)
+
+    def rotate_user_key(self, key_id: str) -> str:
+        token = self._new_user_token()
+        now = utc_now()
+        try:
+            with self._lock, self._connect() as connection:
+                cursor = connection.execute(
+                    """UPDATE user_keys
+                       SET token_hash = ?, enabled = 1, updated_at = ?
+                       WHERE key_id = ?""",
+                    (token_digest(token), now, clean_text(key_id, 64)),
+                )
+                if cursor.rowcount != 1:
+                    raise ValueError("key not found")
+        except sqlite3.IntegrityError as exc:
+            raise ConflictError("phone number or device SIM already has an active key") from exc
+        return token
+
+    def disable_user_key(self, key_id: str) -> None:
+        with self._lock, self._connect() as connection:
+            cursor = connection.execute(
+                "UPDATE user_keys SET enabled = 0, updated_at = ? WHERE key_id = ?",
+                (utc_now(), clean_text(key_id, 64)),
+            )
+            if cursor.rowcount != 1:
+                raise ValueError("key not found")
+
+    def unbind_user_key(self, key_id: str) -> None:
+        with self._lock, self._connect() as connection:
+            cursor = connection.execute(
+                """UPDATE user_keys
+                   SET device_id = '', sim_slot = NULL, updated_at = ?
+                   WHERE key_id = ?""",
+                (utc_now(), clean_text(key_id, 64)),
+            )
+            if cursor.rowcount != 1:
+                raise ValueError("key not found")
+
+    def bind_user_key(
+        self, key_id: str, device_id: str, sim_slot: Optional[int]
+    ) -> Dict[str, Any]:
+        device_id = clean_text(device_id, 128)
+        if not device_id:
+            raise ValueError("device_id is required")
+        if sim_slot not in (1, 2):
+            raise ValueError("sim_slot must be 1 or 2")
+        now = utc_now()
+        with self._lock, self._connect() as connection:
+            row = connection.execute(
+                """SELECT key_id, phone_number, device_id, sim_slot, enabled
+                   FROM user_keys WHERE key_id = ?""",
+                (clean_text(key_id, 64),),
+            ).fetchone()
+            if not row or row["enabled"] != 1:
+                raise ValueError("key is disabled or missing")
+            already_bound = bool(row["device_id"])
+            if row["device_id"]:
+                if row["device_id"] != device_id or row["sim_slot"] != sim_slot:
+                    raise ConflictError("key is already bound to another device or SIM")
+            else:
+                collision = connection.execute(
+                    """SELECT 1 FROM user_keys
+                       WHERE enabled = 1 AND device_id = ? AND sim_slot = ?""",
+                    (device_id, sim_slot),
+                ).fetchone()
+                if collision:
+                    raise ConflictError("device SIM already has an active key")
+                connection.execute(
+                    """UPDATE user_keys
+                       SET device_id = ?, sim_slot = ?, updated_at = ?
+                       WHERE key_id = ?""",
+                    (device_id, sim_slot, now, row["key_id"]),
+                )
+            credential = connection.execute(
+                "SELECT enabled FROM device_credentials WHERE device_id = ?", (device_id,)
+            ).fetchone()
+            device_token: Optional[str] = None
+            if not credential or credential["enabled"] != 1:
+                device_token = secrets.token_urlsafe(32)
+                connection.execute(
+                    """INSERT INTO device_credentials (
+                        device_id, label, token_hash, enabled, created_at, updated_at
+                    ) VALUES (?, ?, ?, 1, ?, ?)
+                    ON CONFLICT(device_id) DO UPDATE SET
+                        label = excluded.label,
+                        token_hash = excluded.token_hash,
+                        enabled = 1,
+                        updated_at = excluded.updated_at""",
+                    (
+                        device_id,
+                        "VibeSMS " + row["phone_number"],
+                        token_digest(device_token),
+                        now,
+                        now,
+                    ),
+                )
+        return {
+            "key_id": row["key_id"],
+            "phone_number": row["phone_number"],
+            "device_id": device_id,
+            "sim_slot": sim_slot,
+            "device_token": device_token,
+            "already_bound": already_bound,
+        }
 
     def insert_event(self, event: Dict[str, Any]) -> Tuple[bool, str]:
         created_at = utc_now()
@@ -355,6 +596,83 @@ class GatewayStore:
             ).fetchall()
         return [dict(row) for row in rows]
 
+    def list_key_events(
+        self,
+        key: Dict[str, Any],
+        after_id: int = 0,
+        limit: int = 100,
+        event_type: str = "",
+    ) -> List[Dict[str, Any]]:
+        if not key.get("device_id") or key.get("sim_slot") not in (1, 2):
+            return []
+        clauses = ["device_id = ?", "sim_slot = ?", "id > ?"]
+        params: List[Any] = [key["device_id"], key["sim_slot"], max(0, after_id)]
+        if event_type:
+            clauses.append("event_type = ?")
+            params.append(event_type)
+        params.append(max(1, min(limit, 200)))
+        fields = (
+            "id, event_id, event_type, sender, content, received_at, sim_slot, "
+            "sim_label, call_type, created_at"
+        )
+        with self._lock, self._connect() as connection:
+            rows = connection.execute(
+                "SELECT "
+                + fields
+                + " FROM events WHERE "
+                + " AND ".join(clauses)
+                + " ORDER BY id ASC LIMIT ?",
+                params,
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    def key_status(self, key: Dict[str, Any], offline_seconds: int) -> Dict[str, Any]:
+        device_id = clean_text(key.get("device_id"), 128)
+        sim_slot = key.get("sim_slot")
+        cursor = 0
+        device: Optional[Dict[str, Any]] = None
+        with self._lock, self._connect() as connection:
+            if device_id and sim_slot in (1, 2):
+                cursor = int(
+                    connection.execute(
+                        """SELECT COALESCE(MAX(id), 0) FROM events
+                           WHERE device_id = ? AND sim_slot = ?""",
+                        (device_id, sim_slot),
+                    ).fetchone()[0]
+                )
+                row = connection.execute(
+                    """SELECT device_id, last_seen, last_heartbeat, app_version,
+                              battery, network_type
+                       FROM devices WHERE device_id = ?""",
+                    (device_id,),
+                ).fetchone()
+                if row:
+                    device = dict(row)
+        online = False
+        seconds_since_seen: Optional[int] = None
+        if device:
+            try:
+                last_seen = datetime.fromisoformat(device["last_seen"])
+                if last_seen.tzinfo is None:
+                    last_seen = last_seen.replace(tzinfo=timezone.utc)
+                seconds_since_seen = max(
+                    0, int((datetime.now(timezone.utc) - last_seen).total_seconds())
+                )
+                online = seconds_since_seen <= offline_seconds
+            except (TypeError, ValueError):
+                pass
+        return {
+            "key_id": key["key_id"],
+            "phone_number": key["phone_number"],
+            "bound": bool(device_id and sim_slot in (1, 2)),
+            "device_id": device_id,
+            "sim_slot": sim_slot,
+            "online": online,
+            "seconds_since_seen": seconds_since_seen,
+            "cursor": cursor,
+            "device": device,
+        }
+
     def list_devices(self, offline_seconds: int = 180) -> List[Dict[str, Any]]:
         with self._lock, self._connect() as connection:
             rows = connection.execute("SELECT * FROM devices ORDER BY last_seen DESC").fetchall()
@@ -416,10 +734,27 @@ class GatewayRequestHandler(BaseHTTPRequestHandler):
     def _provided_token(self) -> str:
         provided = self.headers.get("X-Gateway-Token", "")
         if not provided:
-            authorization = self.headers.get("Authorization", "")
-            if authorization.lower().startswith("bearer "):
-                provided = authorization[7:].strip()
+            provided = self._bearer_token()
         return provided
+
+    def _bearer_token(self) -> str:
+        authorization = self.headers.get("Authorization", "")
+        if authorization.lower().startswith("bearer "):
+            return authorization[7:].strip()
+        return ""
+
+    def _user_key_authorized(self) -> Optional[Dict[str, Any]]:
+        return self.gateway_server.store.authenticate_user_key(self._bearer_token())
+
+    def _user_key_unauthorized(self) -> None:
+        body = json.dumps({"ok": False, "error": "valid VibeSMS key required"}).encode("utf-8")
+        self.send_response(HTTPStatus.UNAUTHORIZED)
+        self.send_header("WWW-Authenticate", 'Bearer realm="VibeSMS"')
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self._security_headers()
+        self.end_headers()
+        self.wfile.write(body)
 
     def _device_authorized(self, payload: Dict[str, Any]) -> bool:
         provided = self._provided_token()
@@ -479,6 +814,78 @@ class GatewayRequestHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         path = urlparse(self.path).path.rstrip("/")
+        if path == "/api/v1/bindings":
+            key = self._user_key_authorized()
+            if not key:
+                self._user_key_unauthorized()
+                return
+            try:
+                payload = self._read_json()
+                result = self.gateway_server.store.bind_user_key(
+                    key["key_id"],
+                    clean_text(payload.get("device_id"), 128),
+                    api_sim_slot(payload.get("sim_slot")),
+                )
+            except ConflictError as exc:
+                self._json(HTTPStatus.CONFLICT, {"ok": False, "error": str(exc)})
+                return
+            except (ValueError, TypeError) as exc:
+                self._json(HTTPStatus.BAD_REQUEST, {"ok": False, "error": str(exc)})
+                return
+            self._json(
+                HTTPStatus.OK if result["already_bound"] else HTTPStatus.CREATED,
+                {"ok": True, **result, "device_token_shown_once": bool(result["device_token"])},
+            )
+            return
+
+        key_match = re.fullmatch(
+            r"/api/v1/admin/keys(?:/([^/]+)/(rotate|disable|unbind))?", path
+        )
+        if key_match:
+            if not self._admin_authorized():
+                self._admin_unauthorized()
+                return
+            try:
+                payload = self._read_json()
+                key_id, action = key_match.groups()
+                if not action:
+                    key_id, token = self.gateway_server.store.issue_user_key(
+                        payload.get("phone_number"),
+                        clean_text(payload.get("label"), 128),
+                        clean_text(payload.get("owner_ref"), 256),
+                        clean_text(payload.get("device_id"), 128),
+                        api_sim_slot(payload.get("sim_slot")),
+                    )
+                    self._json(
+                        HTTPStatus.CREATED,
+                        {
+                            "ok": True,
+                            "key_id": key_id,
+                            "key": token,
+                            "key_shown_once": True,
+                        },
+                    )
+                    return
+                if action == "rotate":
+                    token = self.gateway_server.store.rotate_user_key(key_id)
+                    self._json(
+                        HTTPStatus.OK,
+                        {"ok": True, "key_id": key_id, "key": token, "key_shown_once": True},
+                    )
+                    return
+                if action == "disable":
+                    self.gateway_server.store.disable_user_key(key_id)
+                else:
+                    self.gateway_server.store.unbind_user_key(key_id)
+            except ConflictError as exc:
+                self._json(HTTPStatus.CONFLICT, {"ok": False, "error": str(exc)})
+                return
+            except (ValueError, TypeError) as exc:
+                self._json(HTTPStatus.BAD_REQUEST, {"ok": False, "error": str(exc)})
+                return
+            self._json(HTTPStatus.OK, {"ok": True, "key_id": key_id, "action": action})
+            return
+
         if path == "/api/v1/admin/devices" or (
             path.startswith("/api/v1/admin/devices/") and path.endswith("/rotate")
         ):
@@ -551,8 +958,76 @@ class GatewayRequestHandler(BaseHTTPRequestHandler):
         if self._serve_static(path, public=True):
             return
 
+        if path in {"/api/v1/status", "/api/v1/inbox", "/api/v1/otp/wait"}:
+            key = self._user_key_authorized()
+            if not key:
+                self._user_key_unauthorized()
+                return
+            if path == "/api/v1/status":
+                self._json(
+                    HTTPStatus.OK,
+                    {
+                        "ok": True,
+                        **self.gateway_server.store.key_status(
+                            key, self.gateway_server.offline_seconds
+                        ),
+                    },
+                )
+                return
+            try:
+                after_id = max(0, int(query.get("after_id", ["0"])[0]))
+                if path == "/api/v1/inbox":
+                    limit = int(query.get("limit", ["100"])[0])
+                    event_type = clean_text(query.get("type", [""])[0], 32).lower()
+                    if event_type not in {"", "sms", "call", "test"}:
+                        raise ValueError("type must be sms, call, test, or empty")
+                    events = self.gateway_server.store.list_key_events(
+                        key, after_id=after_id, limit=limit, event_type=event_type
+                    )
+                    cursor = events[-1]["id"] if events else after_id
+                    self._json(
+                        HTTPStatus.OK,
+                        {"ok": True, "events": events, "cursor": cursor},
+                    )
+                    return
+                timeout = max(0.0, min(float(query.get("timeout", ["30"])[0]), 60.0))
+            except (TypeError, ValueError) as exc:
+                self._json(HTTPStatus.BAD_REQUEST, {"ok": False, "error": str(exc)})
+                return
+
+            cursor = after_id
+            deadline = time.monotonic() + timeout
+            while True:
+                events = self.gateway_server.store.list_key_events(
+                    key, after_id=cursor, limit=100, event_type="sms"
+                )
+                for event in events:
+                    cursor = event["id"]
+                    code = extract_otp(event["content"])
+                    if code:
+                        self._json(
+                            HTTPStatus.OK,
+                            {
+                                "ok": True,
+                                "status": "received",
+                                "code": code,
+                                "cursor": cursor,
+                                "event": event,
+                            },
+                        )
+                        return
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    self._json(
+                        HTTPStatus.OK,
+                        {"ok": True, "status": "timeout", "cursor": cursor},
+                    )
+                    return
+                time.sleep(min(0.25, remaining))
+
         protected_path = (
-            path.startswith("/api/v1/")
+            path in {"/api/v1/events", "/api/v1/devices"}
+            or path.startswith("/api/v1/admin/")
             or path in {"/admin", "/admin/"}
             or path.startswith("/admin/")
         )
@@ -585,6 +1060,12 @@ class GatewayRequestHandler(BaseHTTPRequestHandler):
             self._json(
                 HTTPStatus.OK,
                 {"ok": True, "credentials": self.gateway_server.store.list_device_credentials()},
+            )
+            return
+        if path == "/api/v1/admin/keys":
+            self._json(
+                HTTPStatus.OK,
+                {"ok": True, "keys": self.gateway_server.store.list_user_keys()},
             )
             return
         if self._serve_static(path, public=False):

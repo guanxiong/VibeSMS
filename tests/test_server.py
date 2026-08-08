@@ -1,5 +1,8 @@
 import base64
 import json
+import os
+import subprocess
+import sys
 import tempfile
 import threading
 import unittest
@@ -7,7 +10,7 @@ from pathlib import Path
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
-from server.app import create_server
+from server.app import create_server, extract_otp
 
 
 class GatewayServerTest(unittest.TestCase):
@@ -35,11 +38,15 @@ class GatewayServerTest(unittest.TestCase):
         self.thread.join(timeout=2)
         self.tempdir.cleanup()
 
-    def request(self, path, method="GET", payload=None, token=None, admin=False):
+    def request(
+        self, path, method="GET", payload=None, token=None, user_token=None, admin=False
+    ):
         data = None if payload is None else json.dumps(payload).encode("utf-8")
         headers = {"Content-Type": "application/json"}
         if token:
             headers["X-Gateway-Token"] = token
+        if user_token:
+            headers["Authorization"] = "Bearer " + user_token
         if admin:
             credentials = base64.b64encode(b"admin:admin-password").decode("ascii")
             headers["Authorization"] = "Basic " + credentials
@@ -68,6 +75,10 @@ class GatewayServerTest(unittest.TestCase):
             self.assertEqual(response.headers.get_content_type(), "image/jpeg")
             self.assertGreater(len(response.read()), 1000)
 
+    def test_otp_extraction_prefers_verification_code_over_year(self):
+        self.assertEqual(extract_otp("2026-08-08 登录验证码为 482913"), "482913")
+        self.assertEqual(extract_otp("Your code is 472 913."), "472913")
+
     def test_admin_dashboard_requires_auth(self):
         with self.assertRaises(HTTPError) as raised:
             urlopen(self.base_url + "/admin/", timeout=3)
@@ -82,6 +93,9 @@ class GatewayServerTest(unittest.TestCase):
 
         with self.assertRaises(HTTPError) as raised:
             urlopen(self.base_url + "/admin/app.js", timeout=3)
+        self.assertEqual(raised.exception.code, 401)
+        with self.assertRaises(HTTPError) as raised:
+            urlopen(self.base_url + "/api/v1/admin/keys", timeout=3)
         self.assertEqual(raised.exception.code, 401)
 
     def test_unknown_public_path_is_not_an_auth_prompt(self):
@@ -199,6 +213,292 @@ class GatewayServerTest(unittest.TestCase):
         self.assertEqual(len(credentials["credentials"]), 2)
         self.assertNotIn("token", credentials["credentials"][0])
         self.assertNotIn("token_hash", credentials["credentials"][0])
+
+    def test_admin_can_issue_list_rotate_and_disable_user_key(self):
+        status, issued = self.request(
+            "/api/v1/admin/keys",
+            "POST",
+            {
+                "phone_number": "+8613800000001",
+                "label": "primary",
+                "owner_ref": "panel:user-1",
+                "device_id": "SEA-AL10-01",
+                "sim_slot": 1,
+            },
+            admin=True,
+        )
+        self.assertEqual(status, 201)
+        self.assertTrue(issued["key"].startswith("vbs_live_"))
+
+        _, listed = self.request("/api/v1/admin/keys", admin=True)
+        self.assertEqual(len(listed["keys"]), 1)
+        self.assertEqual(listed["keys"][0]["phone_number"], "+8613800000001")
+        self.assertNotIn("key", listed["keys"][0])
+        self.assertNotIn("token_hash", listed["keys"][0])
+
+        _, status_payload = self.request(
+            "/api/v1/status", user_token=issued["key"]
+        )
+        self.assertTrue(status_payload["bound"])
+        self.assertEqual(status_payload["sim_slot"], 1)
+
+        _, rotated = self.request(
+            "/api/v1/admin/keys/%s/rotate" % issued["key_id"],
+            "POST",
+            {},
+            admin=True,
+        )
+        with self.assertRaises(HTTPError) as raised:
+            self.request("/api/v1/status", user_token=issued["key"])
+        self.assertEqual(raised.exception.code, 401)
+        self.request("/api/v1/status", user_token=rotated["key"])
+
+        self.request(
+            "/api/v1/admin/keys/%s/disable" % issued["key_id"],
+            "POST",
+            {},
+            admin=True,
+        )
+        with self.assertRaises(HTTPError) as raised:
+            self.request("/api/v1/status", user_token=rotated["key"])
+        self.assertEqual(raised.exception.code, 401)
+
+    def test_user_key_binding_returns_upload_only_device_token(self):
+        _, issued = self.request(
+            "/api/v1/admin/keys",
+            "POST",
+            {"phone_number": "+8613900000002", "label": "new terminal"},
+            admin=True,
+        )
+        status, binding = self.request(
+            "/api/v1/bindings",
+            "POST",
+            {"device_id": "PIXEL-02", "sim_slot": 2},
+            user_token=issued["key"],
+        )
+        self.assertEqual(status, 201)
+        self.assertTrue(binding["device_token"])
+        self.assertTrue(binding["device_token_shown_once"])
+
+        status, repeated = self.request(
+            "/api/v1/bindings",
+            "POST",
+            {"device_id": "PIXEL-02", "sim_slot": 2},
+            user_token=issued["key"],
+        )
+        self.assertEqual(status, 200)
+        self.assertTrue(repeated["already_bound"])
+        self.assertIsNone(repeated["device_token"])
+
+        event = {
+            "device_id": "PIXEL-02",
+            "event_type": "sms",
+            "sender": "Example",
+            "content": "Your verification code is 472 913",
+            "sim_slot": 2,
+        }
+        self.request(
+            "/api/v1/events", "POST", event, token=binding["device_token"]
+        )
+        _, inbox = self.request("/api/v1/inbox", user_token=issued["key"])
+        self.assertEqual(len(inbox["events"]), 1)
+        self.assertEqual(inbox["events"][0]["sender"], "Example")
+
+        _, otp = self.request(
+            "/api/v1/otp/wait?after_id=0&timeout=0", user_token=issued["key"]
+        )
+        self.assertEqual(otp["status"], "received")
+        self.assertEqual(otp["code"], "472913")
+        _, timeout = self.request(
+            "/api/v1/otp/wait?after_id=%d&timeout=0" % otp["cursor"],
+            user_token=issued["key"],
+        )
+        self.assertEqual(timeout["status"], "timeout")
+
+        with self.assertRaises(HTTPError) as raised:
+            self.request(
+                "/api/v1/events",
+                "POST",
+                event,
+                user_token=issued["key"],
+            )
+        self.assertEqual(raised.exception.code, 401)
+
+    def test_admin_prebinding_still_allows_first_device_token_exchange(self):
+        _, issued = self.request(
+            "/api/v1/admin/keys",
+            "POST",
+            {
+                "phone_number": "+8613900000088",
+                "device_id": "PREBOUND-08",
+                "sim_slot": 1,
+            },
+            admin=True,
+        )
+        status, binding = self.request(
+            "/api/v1/bindings",
+            "POST",
+            {"device_id": "PREBOUND-08", "sim_slot": 1},
+            user_token=issued["key"],
+        )
+        self.assertEqual(status, 200)
+        self.assertTrue(binding["already_bound"])
+        self.assertTrue(binding["device_token"])
+
+    def test_user_keys_are_isolated_by_device_and_sim(self):
+        _, sim1_key = self.request(
+            "/api/v1/admin/keys",
+            "POST",
+            {
+                "phone_number": "+8613800000011",
+                "device_id": "SEA-AL10-01",
+                "sim_slot": 1,
+            },
+            admin=True,
+        )
+        _, sim2_key = self.request(
+            "/api/v1/admin/keys",
+            "POST",
+            {
+                "phone_number": "+8613800000022",
+                "device_id": "SEA-AL10-01",
+                "sim_slot": 2,
+            },
+            admin=True,
+        )
+        for sim_slot, sender in ((1, "SIM-ONE"), (2, "SIM-TWO")):
+            self.request(
+                "/api/v1/events",
+                "POST",
+                {
+                    "device_id": "SEA-AL10-01",
+                    "event_type": "sms",
+                    "sender": sender,
+                    "content": "code %d2345" % sim_slot,
+                    "sim_slot": sim_slot,
+                },
+                token="test-token",
+            )
+
+        _, sim1_inbox = self.request(
+            "/api/v1/inbox", user_token=sim1_key["key"]
+        )
+        _, sim2_inbox = self.request(
+            "/api/v1/inbox", user_token=sim2_key["key"]
+        )
+        self.assertEqual([event["sender"] for event in sim1_inbox["events"]], ["SIM-ONE"])
+        self.assertEqual([event["sender"] for event in sim2_inbox["events"]], ["SIM-TWO"])
+
+    def test_active_phone_and_binding_cannot_be_claimed_twice(self):
+        _, issued = self.request(
+            "/api/v1/admin/keys",
+            "POST",
+            {"phone_number": "+8613700000003"},
+            admin=True,
+        )
+        with self.assertRaises(HTTPError) as raised:
+            self.request(
+                "/api/v1/admin/keys",
+                "POST",
+                {"phone_number": "+8613700000003"},
+                admin=True,
+            )
+        self.assertEqual(raised.exception.code, 409)
+
+        _, unbound = self.request(
+            "/api/v1/admin/keys",
+            "POST",
+            {"phone_number": "+8613700000099"},
+            admin=True,
+        )
+        with self.assertRaises(HTTPError) as raised:
+            self.request(
+                "/api/v1/bindings",
+                "POST",
+                {"device_id": "PIXEL-99", "sim_slot": 0},
+                user_token=unbound["key"],
+            )
+        self.assertEqual(raised.exception.code, 400)
+
+        self.request(
+            "/api/v1/bindings",
+            "POST",
+            {"device_id": "PIXEL-03", "sim_slot": 1},
+            user_token=issued["key"],
+        )
+        with self.assertRaises(HTTPError) as raised:
+            self.request(
+                "/api/v1/bindings",
+                "POST",
+                {"device_id": "PIXEL-04", "sim_slot": 1},
+                user_token=issued["key"],
+            )
+        self.assertEqual(raised.exception.code, 409)
+
+    def test_bundled_skill_client_reads_key_scoped_status(self):
+        _, issued = self.request(
+            "/api/v1/admin/keys",
+            "POST",
+            {
+                "phone_number": "+8613600000004",
+                "device_id": "SEA-AL10-01",
+                "sim_slot": 1,
+            },
+            admin=True,
+        )
+        script = (
+            Path(__file__).resolve().parents[1]
+            / "skills"
+            / "vibesms"
+            / "scripts"
+            / "vibesms.py"
+        )
+        environment = {
+            **os.environ,
+            "VIBESMS_KEY": issued["key"],
+            "VIBESMS_BASE_URL": self.base_url,
+            "PYTHONDONTWRITEBYTECODE": "1",
+        }
+        completed = subprocess.run(
+            [sys.executable, str(script), "status"],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=5,
+            env=environment,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        payload = json.loads(completed.stdout)
+        self.assertEqual(payload["phone_number"], "+8613600000004")
+        self.assertEqual(payload["sim_slot"], 1)
+
+    def test_disabled_key_cannot_be_rotated_over_active_replacement(self):
+        _, old_key = self.request(
+            "/api/v1/admin/keys",
+            "POST",
+            {"phone_number": "+8613500000005"},
+            admin=True,
+        )
+        self.request(
+            "/api/v1/admin/keys/%s/disable" % old_key["key_id"],
+            "POST",
+            {},
+            admin=True,
+        )
+        self.request(
+            "/api/v1/admin/keys",
+            "POST",
+            {"phone_number": "+8613500000005"},
+            admin=True,
+        )
+        with self.assertRaises(HTTPError) as raised:
+            self.request(
+                "/api/v1/admin/keys/%s/rotate" % old_key["key_id"],
+                "POST",
+                {},
+                admin=True,
+            )
+        self.assertEqual(raised.exception.code, 409)
 
 
 if __name__ == "__main__":

@@ -27,13 +27,43 @@ h2 { margin: 2px 0 0; font-size: 24px; }
 #status-dot { width: 8px; height: 8px; border-radius: 50%; background: #78827f; }
 #status-dot.online { background: var(--accent); box-shadow: 0 0 14px var(--accent); }
 #status-dot.offline { background: #ff6f6f; }
-.summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 38px 0 48px; }
+.summary { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin: 38px 0 48px; }
 .summary article { padding: 18px; border: 1px solid var(--line); background: linear-gradient(145deg, var(--panel-2), var(--panel)); border-radius: 14px; }
 .summary span { display: block; color: var(--muted); font-size: 13px; }
 .summary strong { display: block; margin-top: 8px; font-size: 32px; }
 section { margin-top: 40px; }
 button { border: 1px solid var(--line); border-radius: 9px; padding: 8px 13px; background: var(--panel); color: var(--text); cursor: pointer; }
 button:hover, button.active { border-color: var(--accent); color: var(--accent); }
+button:disabled { cursor: wait; opacity: .55; }
+.section-hint { color: var(--muted); font-size: 12px; }
+.key-console { display: grid; grid-template-columns: minmax(260px, .7fr) minmax(430px, 1.3fr); gap: 16px; margin-top: 16px; }
+.key-form, .keys, .key-secret { border: 1px solid var(--line); border-radius: 14px; background: var(--panel); }
+.key-form { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-content: start; padding: 18px; }
+.key-form label { display: grid; gap: 7px; color: var(--muted); font-size: 11px; }
+.key-form label:first-child, .key-form label:nth-child(3), .key-form label:nth-child(4), .key-form .primary-action { grid-column: 1 / -1; }
+input, select { width: 100%; min-height: 40px; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; outline: none; background: #0e1214; color: var(--text); }
+input:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px #8ef0bf1f; }
+.primary-action { min-height: 42px; border-color: var(--accent); background: var(--accent); color: #092116; font-weight: 750; }
+.primary-action:hover { background: #a8f7cd; color: #092116; }
+.keys { overflow: hidden; }
+.keys > .empty { padding: 20px; }
+.key-card { padding: 18px; border-bottom: 1px solid var(--line); }
+.key-card:last-child { border-bottom: 0; }
+.key-card.is-disabled { opacity: .58; }
+.key-card-head { display: flex; justify-content: space-between; gap: 16px; }
+.key-card-head strong, .key-card-head span { display: block; }
+.key-card-head div > span { margin-top: 5px; color: var(--muted); font-size: 12px; }
+.key-state { color: var(--accent); font: 700 9px ui-monospace, monospace; letter-spacing: .1em; }
+.is-disabled .key-state { color: #ff8d8d; }
+.key-card dl { grid-template-columns: 1fr 1fr; margin-top: 15px; }
+.key-actions { display: flex; justify-content: flex-end; gap: 7px; margin-top: 16px; }
+.key-actions .danger { color: #ff8d8d; }
+.key-secret { display: grid; grid-template-columns: 1fr auto; gap: 12px; margin-bottom: 12px; padding: 16px; border-color: #508268; background: #12271d; }
+.key-secret[hidden] { display: none; }
+.key-secret div span, .key-secret div strong { display: block; }
+.key-secret div span { color: var(--accent); font: 700 9px ui-monospace, monospace; letter-spacing: .1em; }
+.key-secret div strong { margin-top: 5px; font-size: 13px; }
+.key-secret code { grid-column: 1 / -1; overflow-x: auto; padding: 12px; background: #09130e; color: #dff8e9; font-size: 12px; white-space: nowrap; }
 .devices { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 12px; margin-top: 16px; }
 .device-card { padding: 18px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); }
 .device-state { padding: 4px 8px; border-radius: 999px; font: 700 11px ui-monospace, monospace; }
@@ -61,4 +91,8 @@ tbody tr:last-child td { border-bottom: 0; }
   .header-actions { width: 100%; justify-content: space-between; }
   .summary { grid-template-columns: 1fr 1fr; }
   .section-title { align-items: flex-end; }
+  .key-console { grid-template-columns: 1fr; }
+  .key-form { grid-template-columns: 1fr; }
+  .key-form label, .key-form label:first-child, .key-form label:nth-child(3), .key-form label:nth-child(4), .key-form .primary-action { grid-column: 1; }
+  .key-card dl { grid-template-columns: 1fr; }
 }
