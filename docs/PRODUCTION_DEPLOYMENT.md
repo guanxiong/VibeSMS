@@ -23,7 +23,7 @@ curl https://sms.shareapi.ai/api/health
 
 Android Terminal 下载：
 
-- APK：<https://github.com/guanxiong/VibeSMS/releases/latest/download/VibeSMS-0.1.0.apk>
+- APK：<https://github.com/guanxiong/VibeSMS/releases/download/v0.1.0/VibeSMS-0.1.0.apk>
 - Release 与校验值：<https://github.com/guanxiong/VibeSMS/releases/tag/v0.1.0>
 - SHA-256：`13346cd206c68c96454622f5e9513b9b0c394ef595fc8e4677c4724975b96813`
 

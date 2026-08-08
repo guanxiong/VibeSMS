@@ -15,8 +15,8 @@
 
 VibeSMS Android Terminal v0.1.0 使用正式发布密钥签名，并通过 GitHub Releases 分发：
 
-- [下载 VibeSMS-0.1.0.apk](https://github.com/guanxiong/VibeSMS/releases/latest/download/VibeSMS-0.1.0.apk)
-- [版本说明与 SHA-256 校验值](https://github.com/guanxiong/VibeSMS/releases/latest)
+- [下载 VibeSMS-0.1.0.apk](https://github.com/guanxiong/VibeSMS/releases/download/v0.1.0/VibeSMS-0.1.0.apk)
+- [版本说明与 SHA-256 校验值](https://github.com/guanxiong/VibeSMS/releases/tag/v0.1.0)
 
 安装后输入管理员签发的 Key、选择 SIM 并连接即可。Android 端不会保存用户 Key，只保存首次绑定后换取的设备上传凭据。
 
