@@ -25,6 +25,7 @@ Android Terminal 下载：
 
 - APK：<https://github.com/guanxiong/VibeSMS/releases/download/v0.2.0/VibeSMS-0.2.0.apk>
 - Release 与校验值：<https://github.com/guanxiong/VibeSMS/releases/tag/v0.2.0>
+- SHA-256：`b86f1a8201ea07e48c38f77a1e7de26a3687c384bc8fa71c709c9461fbfc8ca9`
 
 发布私钥只保存在维护者机器。GitHub Actions 负责编译未签名 Release Candidate，本地使用官方 `apksigner` 完成签名后再上传 GitHub Release。
 
