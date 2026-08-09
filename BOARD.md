@@ -67,3 +67,5 @@
 - 2026-08-08：签名 APK `VibeSMS-0.1.0.apk` 已发布至 GitHub Release `v0.1.0`，随附 `SHA256SUMS`；线上回下载 SHA-256 为 `13346cd206c68c96454622f5e9513b9b0c394ef595fc8e4677c4724975b96813`，APK Signature Scheme v3 与 4096-bit RSA 发布证书复核通过。发布私钥仅保存在维护者机器，未上传 GitHub。
 - 2026-08-08：VibeSMS 0.4.0 已部署生产，部署前在线备份为 `gateway-20260808T083043Z.db`；公网健康检查、首页 APK 直链、管理端 401 边界和原 1 台设备/12 条事件均验收通过，首页不再包含“即将发布”。
 - 2026-08-08：MVP-004 进入 READY FOR REVIEW；当前手机未连接，v0.1.0 APK 的真机安装、SIM 绑定和运营商短信/来电回归并入下次 MVP-003 手机切换验收。
+- 2026-08-09：VibeSMS 0.8.0 已部署生产：首页申请 Key 改为原地弹框，自动名额与人工队列两条路径均完成桌面/移动端交互验收；Key 签发后直接提供 Skill 安装命令和不含 Key 的 Android 配置 Prompt。
+- 2026-08-09：Android Terminal v0.2.0 与 VibeSMS Skill v1.1.0 已发布。Android CI 的 API 36 编译与 lint、服务端/Skill 27 项测试、签名证书与线上回下载 SHA-256 均通过；ADB 自动安装、显式双卡选择、权限授予、绑定和心跳验证已实现，等待当前手机重新连接后完成真机脱离 USB 验收。
