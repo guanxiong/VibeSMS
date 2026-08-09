@@ -5,11 +5,11 @@
 Android 端：SmsForwarder 3.5.0  
 设备标记：`SEA-AL10-01`
 
-## VibeSMS Terminal v0.1.0 切换状态
+## VibeSMS Terminal v0.2.0 切换状态
 
-签名 APK 已发布：<https://github.com/guanxiong/VibeSMS/releases/tag/v0.1.0>。当前手机尚未重新连接，本页后续记录的是 SmsForwarder 3.5.0 的既有验收结果。
+v0.2.0 增加了经 ADB 授权的自动安装、权限授予、SIM 绑定和云端在线验证。当前手机尚未重新连接；签名 APK 发布后，使用 `skills/vibesms/scripts/setup_android.py` 执行下列真机验收。本页后续记录的是 SmsForwarder 3.5.0 的既有验收结果。
 
-下次连接手机后改装 VibeSMS Terminal，并补做：APK 签名安装、运行时权限、双卡枚举、Key 首次绑定、脱离 USB 的短信/来电上传、断网恢复补发、15 分钟心跳和重启自启动。通过后再将 MVP-003 与 MVP-004 标记为最终 APPROVED。
+下次连接手机后改装 VibeSMS Terminal，并补做：ADB 自动配置、APK 签名安装、运行时权限、双卡枚举、Key 首次绑定、脱离 USB 的短信/来电上传、断网恢复补发、15 分钟心跳和重启自启动。通过后再将 MVP-003 与 MVP-004 标记为最终 APPROVED。
 
 ## 已完成
 

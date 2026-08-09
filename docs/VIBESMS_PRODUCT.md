@@ -12,7 +12,7 @@ VibeSMS 不提供公共共享号码池，不面向绕过第三方平台风控或
 - 云端入口：`https://sms.shareapi.ai`
 - 身份方式：无独立用户账户，Key 即当前访问边界
 - 默认映射：一个用户 Key 对应一个手机号
-- Android 接入：用户在 APK 首次输入 Key，服务端换发仅具上传权限的设备凭据
+- Android 接入：用户可在 APK 中手工输入 Key，也可让 Agent 通过已授权 ADB 自动安装和绑定；服务端换发仅具上传权限的设备凭据
 - Agent 接入：用户 Key 只读取对应号码的短信、来电与验证码
 - APK 分发：GitHub Releases，必须使用签名 APK 并发布 SHA-256 校验值
 - 公开仓库：`https://github.com/guanxiong/VibeSMS`
@@ -21,12 +21,12 @@ VibeSMS 不提供公共共享号码池，不面向绕过第三方平台风控或
 ## 最小用户流程
 
 1. 管理员在 `/admin/` 开启自动签发，并设置可公开领取的剩余名额。
-2. 用户在 `/apply/` 提交邮箱、本人手机号、用途和预计终端数量；有额度时立即获得仅显示一次的真实 Key。
+2. 用户在首页弹框或 `/apply/` 提交邮箱、本人手机号、用途和预计终端数量；有额度时立即获得仅显示一次的真实 Key。
 3. 自动额度关闭或用尽时，申请进入人工队列；管理员可签发一次性激活码，并通过邮箱或微信交付，用户再到 `/activate/` 兑换。
-4. 用户从 GitHub Releases 下载并校验 VibeSMS APK。
-5. APK 中输入 Key、选择 SIM 卡槽并确认手机号；服务端绑定 Key、设备与 SIM，并为 APK 换发设备凭据。
-6. 用户把 Key 保存到 Agent 的 Secret 或环境变量，也可用它登录 `/inbox/` 查看终端状态、短信和来电。
-7. Agent 安装 VibeSMS Skill，查询在线状态并等待短信、验证码或来电记录。
+4. 用户把 Key 保存到 Agent 的 Secret 或环境变量，不把它粘贴到 Prompt、聊天记录或源码。
+5. 用户安装 VibeSMS Skill，连接并解锁 Android 手机、授权 USB 调试，再复制首页提供的不含 Key 的配置 Prompt。
+6. Agent 询问 SIM 卡槽，下载并校验签名 APK，通过 ADB 安装、授权和绑定，再以 Key-scoped `status` 验证在线；用户也可在 APK 中手工完成相同流程。
+7. 用户可用 Key 登录 `/inbox/`，或让 Agent 查询状态并等待短信、验证码与来电记录。
 
 ## 凭据边界
 

@@ -45,6 +45,13 @@
           <code id="issued-key" class="secret-value"></code>
           <div class="success-actions"><button id="copy-key" type="button">复制 Key</button><a class="primary-action link-button" href="/inbox/">打开 Key 收件箱 →</a></div>
           <p>Key 已临时保存在当前浏览器标签页。请立即复制到 Secret 管理器；关闭标签页后，本地状态会清除。</p>
+          <div class="setup-handoff">
+            <p class="eyebrow">NEXT / AGENT SETUP</p>
+            <h3>用 Agent 自动配置 Android</h3>
+            <p>把 Key 保存为本机 Secret <code>VIBESMS_KEY</code>，不要粘贴进 Prompt。然后连接并解锁手机、打开 USB 调试。</p>
+            <div class="handoff-value"><span>安装 Skill</span><code id="setup-skill-command">npx skills add guanxiong/VibeSMS --skill vibesms -g -y</code><button id="copy-skill-command" type="button">复制命令</button></div>
+            <div class="handoff-value prompt"><span>交给 Agent</span><p id="setup-agent-prompt">使用 VibeSMS Skill 的 Android USB 配置流程设置我的手机。手机已解锁并通过 USB 连接；请先检查 ADB 授权，再询问我使用 SIM 1 还是 SIM 2。请仅从本机的 VIBESMS_KEY Secret 或环境变量读取 Key，不要让我把 Key 粘贴到聊天或命令行。自动下载并校验官方签名 APK、安装、授予必要权限、完成绑定，并用 status 验证终端在线后报告结果。</p><button id="copy-agent-prompt" type="button">复制 Prompt</button></div>
+          </div>
         </div>
         <div id="request-success" class="success-panel" hidden>
           <p class="eyebrow">REQUEST RECEIVED</p>

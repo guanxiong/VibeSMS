@@ -3,7 +3,7 @@
   "groupings": [
     {
       "title": "SMS & OTP",
-      "description": "Connect AI agents to a Key-scoped Android phone number for SMS, one-time verification codes, inbound call records, and terminal status.",
+      "description": "Install and configure a user-owned Android phone over authorized ADB, then connect AI agents to its Key-scoped SMS, one-time verification codes, inbound call records, and terminal status.",
       "skills": [
         "vibesms"
       ]

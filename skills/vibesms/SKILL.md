@@ -1,11 +1,11 @@
 ---
 name: vibesms
-description: Give an AI agent secure, Key-scoped access to SMS, one-time verification codes, Android terminal status, and inbound call records from a user-owned phone. Use when an agent needs to receive SMS/OTP, wait for a fresh verification code, check whether a VibeSMS terminal is online, or inspect call events through sms.shareapi.ai or a self-hosted VibeSMS instance.
+description: Set up a user-owned Android phone as a VibeSMS terminal over authorized ADB, then give an AI agent secure, Key-scoped access to SMS, one-time verification codes, terminal status, and inbound call records. Use when an agent needs to install or configure VibeSMS on a USB-connected Android phone, receive SMS/OTP, wait for a fresh verification code, check terminal status, or inspect call events through sms.shareapi.ai or a self-hosted VibeSMS instance.
 ---
 
 # VibeSMS
 
-Connect an AI agent to a user-owned Android phone and SIM without exposing the whole SMS inbox. A single `VIBESMS_KEY` gives the agent access only to its assigned phone number and supports four focused actions:
+Connect an AI agent to a user-owned Android phone and SIM without exposing the whole SMS inbox. A single `VIBESMS_KEY` supports Android setup plus four focused inbox actions:
 
 - Check whether the Android terminal is bound and online.
 - Capture an event cursor before an external service sends a message.
@@ -21,6 +21,22 @@ Resolve `scripts/vibesms.py` relative to this `SKILL.md`; do not assume the curr
 - Use `VIBESMS_BASE_URL` only for a self-hosted instance; it defaults to `https://sms.shareapi.ai`.
 - Never ask the user to paste a Key into chat, command arguments, source code, or logs.
 - Never expose the Key in output. If it is missing, ask the user to configure the Secret.
+
+## Set up Android over USB
+
+1. Ask the user to connect and unlock the phone, enable USB debugging, and confirm whether to use SIM 1 or SIM 2. Do not guess on a dual-SIM phone.
+2. Check that `adb devices` shows exactly one device in the `device` state. If it shows `unauthorized`, ask the user to approve the prompt on the phone.
+3. Ensure `VIBESMS_KEY` is available as an environment Secret. Never paste it into chat or a shell command.
+4. Run the deterministic installer, which downloads and verifies the signed APK, installs it, grants the required runtime permissions, invokes the ADB-only provisioning receiver, and checks the cloud heartbeat:
+
+   ```bash
+   python3 <skill-directory>/scripts/setup_android.py --sim-slot <1-or-2>
+   ```
+
+   Add `--serial <adb-serial>` only when more than one authorized device is connected. Use `--apk <signed-apk>` for an explicitly supplied local APK.
+5. Report `bound`, `online`, `device_id`, and selected SIM. Do not report the Key or device Token.
+
+The setup receiver is protected by Android's `android.permission.DUMP`, so ordinary applications cannot invoke it. The setup script passes the Key directly to `adb` without a host shell and never prints child command arguments.
 
 ## Receive a verification code
 

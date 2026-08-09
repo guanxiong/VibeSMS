@@ -54,4 +54,22 @@ document.querySelector("#copy-key").addEventListener("click", async event => {
   }
 });
 
+async function copyHandoff(button, selector, successLabel) {
+  const value = document.querySelector(selector)?.textContent || "";
+  try {
+    await navigator.clipboard.writeText(value.trim());
+    button.textContent = successLabel;
+  } catch (_error) {
+    window.alert("复制失败，请手工选择并复制。");
+  }
+}
+
+document.querySelector("#copy-skill-command").addEventListener("click", event => {
+  copyHandoff(event.currentTarget, "#setup-skill-command", "命令已复制");
+});
+
+document.querySelector("#copy-agent-prompt").addEventListener("click", event => {
+  copyHandoff(event.currentTarget, "#setup-agent-prompt", "Prompt 已复制");
+});
+
 refreshIssuanceStatus();

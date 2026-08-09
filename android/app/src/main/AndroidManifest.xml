@@ -54,6 +54,11 @@
             </intent-filter>
         </receiver>
 
+        <receiver
+            android:name=".ProvisionReceiver"
+            android:exported="true"
+            android:permission="android.permission.DUMP" />
+
         <service
             android:name=".UploadJobService"
             android:exported="false"

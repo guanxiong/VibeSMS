@@ -65,7 +65,7 @@ class GatewayServerTest(unittest.TestCase):
             homepage = response.read().decode("utf-8")
         self.assertIn("让你的 Agent", homepage)
         self.assertIn('href="/admin/"', homepage)
-        self.assertIn("VibeSMS-0.1.0.apk", homepage)
+        self.assertIn("VibeSMS-0.2.0.apk", homepage)
         self.assertIn('class="keep-together">“短信列表”，</span>', homepage)
         self.assertIn('class="keep-together">号码</span>', homepage)
         self.assertIn('class="keep-together">手机短信。</span>', homepage)
@@ -78,6 +78,10 @@ class GatewayServerTest(unittest.TestCase):
         self.assertIn('id="skill"', homepage)
         self.assertIn('href="/inbox/"', homepage)
         self.assertIn("申请测试 Key", homepage)
+        self.assertIn('id="key-dialog"', homepage)
+        self.assertIn("data-open-key-dialog", homepage)
+        self.assertIn("data-copy-dialog-prompt", homepage)
+        self.assertIn("VIBESMS_KEY Secret", homepage)
         self.assertNotIn("即将发布", homepage)
 
         with urlopen(self.base_url + "/site/styles.css", timeout=3) as response:
@@ -131,6 +135,16 @@ class GatewayServerTest(unittest.TestCase):
             with urlopen(self.base_url + path, timeout=3) as response:
                 self.assertEqual(response.status, 200)
                 self.assertIn(expected, response.read().decode("utf-8"))
+
+        apply_html = (
+            Path(__file__).resolve().parents[1]
+            / "server"
+            / "static"
+            / "apply"
+            / "index.html"
+        ).read_text(encoding="utf-8")
+        self.assertIn("用 Agent 自动配置 Android", apply_html)
+        self.assertIn("setup-agent-prompt", apply_html)
 
         status, request = self.request(
             "/api/v1/key-requests",
@@ -736,12 +750,13 @@ class GatewayServerTest(unittest.TestCase):
         grouping = metadata["groupings"][0]
 
         self.assertEqual(grouping["skills"], ["vibesms"])
-        self.assertIn("Android phone number", grouping["description"])
+        self.assertIn("Android phone", grouping["description"])
+        self.assertIn("authorized ADB", grouping["description"])
 
         skill = (root / "skills" / "vibesms" / "SKILL.md").read_text(
             encoding="utf-8"
         )
-        self.assertIn("supports four focused actions", skill)
+        self.assertIn("supports Android setup plus four focused inbox actions", skill)
 
     def test_disabled_key_cannot_be_rotated_over_active_replacement(self):
         _, old_key = self.request(

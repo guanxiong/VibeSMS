@@ -24,7 +24,25 @@ cd android
 
 Pull requests and pushes to `main` run the same checks in GitHub Actions. Version tags matching `v*` produce an unsigned release candidate plus the official Android signing tool as a short-lived Actions artifact. A maintainer signs the candidate locally and publishes the signed APK with `SHA256SUMS` in GitHub Releases, so the private release key never leaves the maintainer machine.
 
+Maintainers with the ignored `signing/` material can run the non-logging local helper:
+
+```bash
+JAVA_HOME=/path/to/jdk-17 ./scripts/build-signed-release
+```
+
 ## First connection
+
+### Agent-assisted USB setup
+
+After saving the user Key as the local `VIBESMS_KEY` Secret, connect and unlock the phone, approve USB debugging, and run the bundled Skill workflow:
+
+```bash
+python3 skills/vibesms/scripts/setup_android.py --sim-slot 1
+```
+
+The script downloads the signed v0.2.0 APK and `SHA256SUMS`, verifies it, installs it, grants required runtime permissions, invokes a receiver protected by Android's shell-only `DUMP` permission, and verifies the Key-scoped cloud status. Use `--sim-slot 2` only after explicitly choosing the second active SIM. The user Key is never persisted by the app or printed by the script.
+
+### Manual setup
 
 1. Install the signed APK from GitHub Releases.
 2. Grant the requested permissions and exempt VibeSMS from aggressive battery optimization if the phone vendor offers that setting.

@@ -8,19 +8,19 @@
 
 ## 当前范围
 
-- Android 端：VibeSMS Terminal 采集入站短信和来电事件，支持双卡、持久化离线队列、自动补发和主动心跳。
+- Android 端：VibeSMS Terminal 采集入站短信和来电事件，支持双卡、持久化离线队列、自动补发、主动心跳和经授权 ADB 的自动安装绑定。
 - 服务端：Python 标准库 + SQLite，无第三方运行依赖。
 - 能力：自动签发额度开关、原子扣减名额、站内 Key 申请、一次性激活码兑换、用户 Key 签发/轮换/禁用、Key 登录收件箱、Android 首次绑定、设备独立上传密钥、Agent 隔离查询、OTP 长轮询、事件去重、主动心跳和响应式管理页面。
 - 暂不包含：主动发短信、远程接听、MDM、集群调度和高可用。
 
 ## Android APK
 
-VibeSMS Android Terminal v0.1.0 使用正式发布密钥签名，并通过 GitHub Releases 分发：
+VibeSMS Android Terminal v0.2.0 使用正式发布密钥签名，并通过 GitHub Releases 分发：
 
-- [下载 VibeSMS-0.1.0.apk](https://github.com/guanxiong/VibeSMS/releases/download/v0.1.0/VibeSMS-0.1.0.apk)
-- [版本说明与 SHA-256 校验值](https://github.com/guanxiong/VibeSMS/releases/tag/v0.1.0)
+- [下载 VibeSMS-0.2.0.apk](https://github.com/guanxiong/VibeSMS/releases/download/v0.2.0/VibeSMS-0.2.0.apk)
+- [版本说明与 SHA-256 校验值](https://github.com/guanxiong/VibeSMS/releases/tag/v0.2.0)
 
-安装后输入管理员签发的 Key、选择 SIM 并连接即可。Android 端不会保存用户 Key，只保存首次绑定后换取的设备上传凭据。
+可以在 APK 内手工输入 Key、选择 SIM 并连接；也可以安装 VibeSMS Skill，把 Key 保存为本机 `VIBESMS_KEY` Secret，再让 Agent 对已解锁且获得 ADB 授权的 USB 手机执行自动安装、权限配置、SIM 绑定和在线验证。Android 端不会保存用户 Key，只保存首次绑定后换取的设备上传凭据。
 
 - 源码：[github.com/guanxiong/VibeSMS](https://github.com/guanxiong/VibeSMS)
 - 云端入口：[sms.shareapi.ai](https://sms.shareapi.ai)
@@ -113,17 +113,18 @@ npx skills add guanxiong/VibeSMS --skill vibesms -g -y
 gh skill install guanxiong/VibeSMS
 ```
 
-Skill 源码位于 [skills/vibesms](skills/vibesms)。安装后把用户 Key 保存为 `VIBESMS_KEY` Secret，再让 Agent 检查终端、读取短信/来电或等待验证码：
+Skill 源码位于 [skills/vibesms](skills/vibesms)。安装后把用户 Key 保存为 `VIBESMS_KEY` Secret，再让 Agent 自动配置 USB 手机、检查终端、读取短信/来电或等待验证码：
 
 ```bash
 export VIBESMS_KEY='vbs_live_...'
 python3 skills/vibesms/scripts/vibesms.py status
 python3 skills/vibesms/scripts/vibesms.py wait-otp --after-id 0 --timeout 60
+python3 skills/vibesms/scripts/setup_android.py --sim-slot 1
 ```
 
 生产使用时先通过 `status` 捕获游标，再触发外部短信，最后用该游标等待验证码，避免误读旧消息。不要把 Key 写入提示词、代码或 Git。
 
-- [GitHub Skill v1.0.1](https://github.com/guanxiong/VibeSMS/releases/tag/vibesms-skill-v1.0.1)
+- [GitHub Skill v1.1.0](https://github.com/guanxiong/VibeSMS/releases/tag/vibesms-skill-v1.1.0)
 - [Skills.sh 仓库页](https://skills.sh/guanxiong/vibesms)
 - [Skills.sh Skill 详情](https://skills.sh/guanxiong/vibesms/vibesms)
 - [Agent Skills 开放规范](https://agentskills.io)

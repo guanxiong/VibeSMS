@@ -1,0 +1,24 @@
+#!/bin/sh
+set -eu
+
+ANDROID_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+STORE_PASSWORD_FILE="$ANDROID_DIR/signing/.keystore-v1-password"
+KEY_PASSWORD_FILE="$ANDROID_DIR/signing/.key-v1-password"
+KEYSTORE_FILE="$ANDROID_DIR/signing/vibesms-release-v1.jks"
+
+: "${JAVA_HOME:?Set JAVA_HOME to a JDK 17 installation}"
+for required in "$STORE_PASSWORD_FILE" "$KEY_PASSWORD_FILE" "$KEYSTORE_FILE"; do
+  if [ ! -f "$required" ]; then
+    echo "Missing local release signing material: $required" >&2
+    exit 2
+  fi
+done
+
+IFS= read -r VIBESMS_KEYSTORE_PASSWORD < "$STORE_PASSWORD_FILE"
+IFS= read -r VIBESMS_KEY_PASSWORD < "$KEY_PASSWORD_FILE"
+VIBESMS_KEYSTORE_PATH="signing/vibesms-release-v1.jks"
+VIBESMS_KEY_ALIAS="vibesms"
+export VIBESMS_KEYSTORE_PASSWORD VIBESMS_KEY_PASSWORD VIBESMS_KEYSTORE_PATH VIBESMS_KEY_ALIAS
+
+cd "$ANDROID_DIR"
+exec ./gradlew --no-daemon :app:lintRelease :app:assembleRelease

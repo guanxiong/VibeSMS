@@ -41,8 +41,8 @@
           <h1><span class="keep-together">让你的 Agent，</span><br><span class="keep-together">安全接收</span><span class="keep-together">手机短信。</span></h1>
           <p class="lede">把一台 Android 手机变成可靠的短信与来电终端。一个 Key 绑定一个号码，Agent 只读取属于它的事件。</p>
           <div class="hero-actions">
-            <a class="button primary" href="/apply/">申请测试 Key <span aria-hidden="true">→</span></a>
-            <a class="button secondary" href="https://github.com/guanxiong/VibeSMS/releases/download/v0.1.0/VibeSMS-0.1.0.apk">下载 Android APK <span class="release-badge">v0.1.0</span></a>
+            <a class="button primary" href="/apply/" data-open-key-dialog>申请测试 Key <span aria-hidden="true">→</span></a>
+            <a class="button secondary" href="https://github.com/guanxiong/VibeSMS/releases/download/v0.2.0/VibeSMS-0.2.0.apk">下载 Android APK <span class="release-badge">v0.2.0</span></a>
             <a class="hero-text-link" href="/activate/">已有激活码？兑换 Key <span aria-hidden="true">→</span></a>
           </div>
           <dl class="hero-facts">
@@ -89,12 +89,12 @@
           <li>
             <span class="step-number">01</span>
             <div><h3>自动获得 Key</h3><p>管理员控制公开名额；有额度时立即签发，无额度时保留为人工申请。</p></div>
-            <a class="step-action" href="/apply/">提交申请 <span aria-hidden="true">→</span></a>
+            <a class="step-action" href="/apply/" data-open-key-dialog>提交申请 <span aria-hidden="true">→</span></a>
           </li>
           <li>
             <span class="step-number">02</span>
             <div><h3>连接 Android</h3><p>安装 VibeSMS Terminal，输入 Key、选择 SIM，离线事件会在网络恢复后补发。</p></div>
-            <a class="step-action" href="https://github.com/guanxiong/VibeSMS/releases/download/v0.1.0/VibeSMS-0.1.0.apk">下载 APK <span aria-hidden="true">↓</span></a>
+            <a class="step-action" href="https://github.com/guanxiong/VibeSMS/releases/download/v0.2.0/VibeSMS-0.2.0.apk">下载 APK <span aria-hidden="true">↓</span></a>
           </li>
           <li>
             <span class="step-number">03</span>
@@ -165,7 +165,7 @@ gh skill install guanxiong/VibeSMS
           <p>VibeSMS Skill 会先记录事件游标，再等待任务开始后的新短信，避免把历史验证码误当成当前结果。</p>
           <div class="skill-links">
             <a class="button primary" href="https://github.com/guanxiong/VibeSMS/tree/main/skills/vibesms">查看 Skill 源码 <span aria-hidden="true">↗</span></a>
-            <a class="button secondary" href="https://github.com/guanxiong/VibeSMS/releases/tag/vibesms-skill-v1.0.1">GitHub Skill v1.0.1 <span aria-hidden="true">↗</span></a>
+            <a class="button secondary" href="https://github.com/guanxiong/VibeSMS/releases/tag/vibesms-skill-v1.1.0">GitHub Skill v1.1.0 <span aria-hidden="true">↗</span></a>
             <a class="button secondary" href="https://skills.sh/guanxiong/vibesms">Skills.sh 仓库页 <span aria-hidden="true">↗</span></a>
           </div>
         </div>
@@ -229,6 +229,64 @@ gh skill install guanxiong/VibeSMS
         </div>
       </section>
     </main>
+
+    <dialog id="key-dialog" class="key-dialog" aria-labelledby="key-dialog-title">
+      <div class="key-dialog-shell">
+        <header class="key-dialog-head">
+          <div>
+            <p class="section-index">ACCESS / TEST KEY</p>
+            <h2 id="key-dialog-title">申请测试 Key</h2>
+          </div>
+          <button class="dialog-close" type="button" data-close-key-dialog aria-label="关闭申请窗口">关闭 <span aria-hidden="true">×</span></button>
+        </header>
+
+        <div id="key-request-view">
+          <p class="dialog-intro">无需注册账户。自动名额可用时，提交后会立即显示一次真实 Key；额度用尽后转入人工审核。</p>
+          <p id="dialog-issuance-status" class="dialog-issuance-status" aria-live="polite">正在检查自动签发名额…</p>
+          <form id="dialog-request-form" class="dialog-form">
+            <label for="dialog-email">邮箱 <em>必填</em><input id="dialog-email" name="email" type="email" autocomplete="email" maxlength="254" placeholder="you@example.com" required></label>
+            <label for="dialog-phone">要接入的手机号 <em>必填</em><input id="dialog-phone" name="phone_number" type="tel" inputmode="tel" autocomplete="tel" maxlength="32" placeholder="+8613800000000" required></label>
+            <label class="dialog-form-wide" for="dialog-use-case">用途 <em>必填</em><textarea id="dialog-use-case" name="use_case" rows="3" maxlength="600" placeholder="例如：让 Agent 完成我自己账号的注册验证；不会用于批量注册或转售。" required></textarea></label>
+            <label for="dialog-device-count">Android 终端数<select id="dialog-device-count" name="device_count" required><option value="1">1 台</option><option value="2-5">2–5 台</option><option value="6+">6 台以上</option></select></label>
+            <label for="dialog-contact">补充联系方式 <span>可选</span><input id="dialog-contact" name="contact" maxlength="256" autocomplete="off" placeholder="例如微信号"></label>
+            <label class="dialog-honeypot" for="dialog-website">网站<input id="dialog-website" name="website" tabindex="-1" autocomplete="off"></label>
+            <div class="dialog-submit-row dialog-form-wide">
+              <button id="dialog-submit-request" class="button primary" type="submit">提交并获取 Key <span aria-hidden="true">→</span></button>
+              <p>仅限你拥有或获授权管理的号码。不要提交短信正文、验证码或凭据。</p>
+            </div>
+            <p id="dialog-form-error" class="dialog-form-error dialog-form-wide" role="alert" aria-live="polite"></p>
+          </form>
+        </div>
+
+        <div id="key-issued-view" class="dialog-result" hidden>
+          <p class="result-state">KEY ISSUED / SHOWN ONCE</p>
+          <h2 tabindex="-1">Key 已生成，接下来交给 Agent。</h2>
+          <p>先复制 Key 并保存为本机 Secret <code>VIBESMS_KEY</code>。为避免泄露，下面的 Prompt 不包含你的 Key。</p>
+          <div class="issued-secret"><code id="dialog-issued-key"></code><button type="button" data-copy-issued-key>复制 Key</button></div>
+          <ol class="agent-handoff-steps">
+            <li><span>01</span><div><strong>安装 VibeSMS Skill</strong><p>让 Agent 获得受约束的 Android 配置和接码流程。</p></div></li>
+            <li><span>02</span><div><strong>手机解锁并连接 USB</strong><p>打开 USB 调试，在手机上确认这台电脑的 ADB 授权。</p></div></li>
+            <li><span>03</span><div><strong>把配置任务交给 Agent</strong><p>Agent 会询问 SIM 1 或 SIM 2，安装并校验签名 APK、绑定终端，再验证在线状态。</p></div></li>
+          </ol>
+          <div class="handoff-copy-block">
+            <div><span>SKILL INSTALL</span><button type="button" data-copy-dialog-install>复制命令</button></div>
+            <code id="dialog-install-command">npx skills add guanxiong/VibeSMS --skill vibesms -g -y</code>
+          </div>
+          <div class="handoff-copy-block prompt-block">
+            <div><span>AGENT PROMPT</span><button type="button" data-copy-dialog-prompt>复制 Prompt</button></div>
+            <p id="dialog-setup-prompt">使用 VibeSMS Skill 的 Android USB 配置流程设置我的手机。手机已解锁并通过 USB 连接；请先检查 ADB 授权，再询问我使用 SIM 1 还是 SIM 2。请仅从本机的 VIBESMS_KEY Secret 或环境变量读取 Key，不要让我把 Key 粘贴到聊天或命令行。自动下载并校验官方签名 APK、安装、授予必要权限、完成绑定，并用 status 验证终端在线后报告结果。</p>
+          </div>
+          <div class="dialog-result-actions"><a class="button primary" href="/inbox/">打开 Key 收件箱 →</a><button class="button secondary" type="button" data-close-key-dialog>完成</button></div>
+        </div>
+
+        <div id="key-pending-view" class="dialog-result" hidden>
+          <p class="result-state">REQUEST RECEIVED</p>
+          <h2 tabindex="-1">申请已进入审核队列。</h2>
+          <p>申请编号 <code id="dialog-request-id"></code>。当前自动名额不可用，审核后会通过你填写的联系方式发送一次性激活码。</p>
+          <div class="dialog-result-actions"><a class="button primary" href="/activate/">兑换激活码 →</a><button class="button secondary" type="button" data-close-key-dialog>关闭</button></div>
+        </div>
+      </div>
+    </dialog>
 
     <footer>
       <a class="brand footer-brand" href="/"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span><span>VibeSMS</span></a>
