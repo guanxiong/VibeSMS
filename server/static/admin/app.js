@@ -63,9 +63,22 @@ function renderRequests(requests) {
   container.innerHTML = `<p class="subsection-label">KEY REQUESTS · ${requests.length}</p>` + requests.map(request => `
     <article class="request-card ${request.status !== "pending" ? "is-handled" : ""}">
       <div class="key-card-head"><div><strong>${escapeHtml(request.email)}</strong><span>${escapeHtml(request.request_id)}</span></div><span class="key-state">${escapeHtml(request.status.toUpperCase())}</span></div>
-      <dl><div><dt>用途</dt><dd>${escapeHtml(request.use_case)}</dd></div><div><dt>终端</dt><dd>${escapeHtml(request.device_count)} 台</dd></div><div><dt>补充联系</dt><dd>${escapeHtml(request.contact || "—")}</dd></div><div><dt>提交时间</dt><dd>${formatTime(request.created_at)}</dd></div></dl>
+      <dl><div><dt>手机号</dt><dd>${escapeHtml(request.phone_number || "—")}</dd></div><div><dt>终端</dt><dd>${escapeHtml(request.device_count)} 台</dd></div><div><dt>用途</dt><dd>${escapeHtml(request.use_case)}</dd></div><div><dt>${request.key_id ? "自动签发 Key ID" : "提交时间"}</dt><dd>${request.key_id ? escapeHtml(request.key_id) : formatTime(request.created_at)}</dd></div>${request.contact ? `<div><dt>补充联系</dt><dd>${escapeHtml(request.contact)}</dd></div>` : ""}</dl>
       ${request.status === "pending" ? `<div class="key-actions"><button type="button" data-request-id="${escapeHtml(request.request_id)}">填入并生成激活码</button></div>` : ""}
     </article>`).join("");
+}
+
+function renderOnboarding(settings) {
+  const form = document.querySelector("#onboarding-form");
+  if (!form.contains(document.activeElement)) {
+    document.querySelector("#auto-issue-enabled").checked = settings.auto_issue_enabled;
+    document.querySelector("#auto-issue-quota").value = settings.auto_issue_quota;
+  }
+  const stateLabel = document.querySelector("#onboarding-state");
+  stateLabel.textContent = settings.auto_issue_available
+    ? `已开启 · 剩余 ${settings.auto_issue_quota}`
+    : settings.auto_issue_enabled ? "额度为 0 · 人工审核" : "已关闭 · 人工审核";
+  stateLabel.className = settings.auto_issue_available ? "is-enabled" : "";
 }
 
 function renderActivationCodes(codes) {
@@ -158,18 +171,20 @@ async function refresh() {
   const statusText = document.querySelector("#status-text");
   try {
     const suffix = state.type ? `?limit=200&type=${encodeURIComponent(state.type)}` : "?limit=200";
-    const [devices, events, keys, requests, activationCodes] = await Promise.all([
+    const [devices, events, keys, requests, activationCodes, onboarding] = await Promise.all([
       getJson("/api/v1/devices"),
       getJson(`/api/v1/events${suffix}`),
       getJson("/api/v1/admin/keys"),
       getJson("/api/v1/admin/key-requests"),
-      getJson("/api/v1/admin/activation-codes")
+      getJson("/api/v1/admin/activation-codes"),
+      getJson("/api/v1/admin/onboarding-settings")
     ]);
     renderDevices(devices.devices);
     renderEvents(events.events);
     renderKeys(keys.keys);
     renderRequests(requests.requests);
     renderActivationCodes(activationCodes.activation_codes);
+    renderOnboarding(onboarding);
     statusDot.className = "online";
     statusText.textContent = "服务正常";
   } catch (error) {
@@ -231,6 +246,24 @@ document.querySelector("#activation-form").addEventListener("submit", async even
     await refresh();
   } catch (error) {
     window.alert(`生成失败：${error.message}`);
+  } finally {
+    submit.disabled = false;
+  }
+});
+
+document.querySelector("#onboarding-form").addEventListener("submit", async event => {
+  event.preventDefault();
+  const submit = event.currentTarget.querySelector("button[type=submit]");
+  submit.disabled = true;
+  try {
+    const result = await postJson("/api/v1/admin/onboarding-settings", {
+      auto_issue_enabled: document.querySelector("#auto-issue-enabled").checked,
+      auto_issue_quota: Number(document.querySelector("#auto-issue-quota").value)
+    });
+    renderOnboarding(result);
+    await refresh();
+  } catch (error) {
+    window.alert(`保存失败：${error.message}`);
   } finally {
     submit.disabled = false;
   }

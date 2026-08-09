@@ -24,7 +24,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import parse_qs, urlparse
 
 
-VERSION = "0.6.0"
+VERSION = "0.7.0"
 PRODUCT_NAME = "VibeSMS"
 MAX_BODY_BYTES = 1024 * 1024
 STATIC_DIR = Path(__file__).with_name("static")
@@ -264,11 +264,13 @@ class GatewayStore:
         CREATE TABLE IF NOT EXISTS key_requests (
             request_id TEXT PRIMARY KEY,
             email TEXT NOT NULL,
+            phone_number TEXT NOT NULL DEFAULT '',
             contact TEXT NOT NULL DEFAULT '',
             use_case TEXT NOT NULL,
             device_count TEXT NOT NULL,
             status TEXT NOT NULL DEFAULT 'pending',
             activation_id TEXT NOT NULL DEFAULT '',
+            key_id TEXT NOT NULL DEFAULT '',
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL
         );
@@ -288,12 +290,26 @@ class GatewayStore:
         );
         CREATE INDEX IF NOT EXISTS idx_activation_codes_status
             ON activation_codes(status, created_at DESC);
+        CREATE TABLE IF NOT EXISTS onboarding_settings (
+            settings_id INTEGER PRIMARY KEY CHECK (settings_id = 1),
+            auto_issue_enabled INTEGER NOT NULL DEFAULT 0,
+            auto_issue_quota INTEGER NOT NULL DEFAULT 0,
+            updated_at TEXT NOT NULL
+        );
         """
         with self._lock, self._connect() as connection:
             connection.executescript(schema)
             self._ensure_column(connection, "devices", "first_seen", "TEXT NOT NULL DEFAULT ''")
             self._ensure_column(connection, "devices", "last_heartbeat", "TEXT NOT NULL DEFAULT ''")
+            self._ensure_column(connection, "key_requests", "phone_number", "TEXT NOT NULL DEFAULT ''")
+            self._ensure_column(connection, "key_requests", "key_id", "TEXT NOT NULL DEFAULT ''")
             connection.execute("UPDATE devices SET first_seen = last_seen WHERE first_seen = ''")
+            connection.execute(
+                """INSERT OR IGNORE INTO onboarding_settings (
+                    settings_id, auto_issue_enabled, auto_issue_quota, updated_at
+                ) VALUES (1, 0, 0, ?)""",
+                (utc_now(),),
+            )
 
     @staticmethod
     def _ensure_column(connection: sqlite3.Connection, table: str, column: str, definition: str) -> None:
@@ -384,9 +400,14 @@ class GatewayStore:
     def _new_activation_code() -> str:
         return ACTIVATION_CODE_PREFIX + secrets.token_urlsafe(24)
 
-    def create_key_request(
-        self, email: str, use_case: str, device_count: str, contact: str = ""
-    ) -> str:
+    def submit_key_request(
+        self,
+        email: str,
+        use_case: str,
+        device_count: str,
+        contact: str = "",
+        phone_number: str = "",
+    ) -> Dict[str, Any]:
         email = clean_text(email, 254).lower()
         use_case = clean_text(use_case, 600)
         contact = clean_text(contact, 256)
@@ -397,29 +418,128 @@ class GatewayStore:
             raise ValueError("please briefly describe the intended use")
         if device_count not in {"1", "2-5", "6+"}:
             raise ValueError("device_count must be 1, 2-5, or 6+")
-        now = utc_now()
+        phone_number = normalize_phone_number(phone_number)
+        now_dt = datetime.now(timezone.utc)
+        now = now_dt.isoformat(timespec="seconds")
+        recent_threshold = (now_dt - timedelta(days=1)).isoformat(timespec="seconds")
         request_id = self._new_request_id()
         with self._lock, self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
             recent = connection.execute(
                 """SELECT COUNT(*) FROM key_requests
-                   WHERE email = ? AND created_at >= datetime('now', '-1 day')""",
-                (email,),
+                   WHERE email = ? AND created_at >= ?""",
+                (email, recent_threshold),
             ).fetchone()[0]
             if recent >= 3:
                 raise ConflictError("too many requests for this email; please try again tomorrow")
+            active_for_email = connection.execute(
+                """SELECT 1 FROM key_requests r
+                   JOIN user_keys k ON k.owner_ref = ('request:' || r.request_id)
+                   WHERE r.email = ? AND k.enabled = 1 LIMIT 1""",
+                (email,),
+            ).fetchone()
+            if active_for_email:
+                raise ConflictError("this email already has an active self-service key")
+            settings = connection.execute(
+                """SELECT auto_issue_enabled, auto_issue_quota
+                   FROM onboarding_settings WHERE settings_id = 1"""
+            ).fetchone()
+            auto_issue = bool(
+                settings and settings["auto_issue_enabled"] == 1 and settings["auto_issue_quota"] > 0
+            )
+            key_id = self._new_key_id() if auto_issue else ""
+            token = self._new_user_token() if auto_issue else ""
+            status = "auto_issued" if auto_issue else "pending"
             connection.execute(
                 """INSERT INTO key_requests (
-                    request_id, email, contact, use_case, device_count, status, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, 'pending', ?, ?)""",
-                (request_id, email, contact, use_case, device_count, now, now),
+                    request_id, email, phone_number, contact, use_case, device_count, status,
+                    activation_id, key_id, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, '', ?, ?, ?)""",
+                (
+                    request_id,
+                    email,
+                    phone_number,
+                    contact,
+                    use_case,
+                    device_count,
+                    status,
+                    key_id,
+                    now,
+                    now,
+                ),
             )
-        return request_id
+            if auto_issue:
+                try:
+                    connection.execute(
+                        """INSERT INTO user_keys (
+                            key_id, label, phone_number, owner_ref, device_id, sim_slot,
+                            token_hash, enabled, created_at, updated_at
+                        ) VALUES (?, 'Self-service test', ?, ?, '', NULL, ?, 1, ?, ?)""",
+                        (
+                            key_id,
+                            phone_number,
+                            "request:" + request_id,
+                            token_digest(token),
+                            now,
+                            now,
+                        ),
+                    )
+                except sqlite3.IntegrityError as exc:
+                    raise ConflictError("phone number already has an active key") from exc
+                connection.execute(
+                    """UPDATE onboarding_settings
+                       SET auto_issue_quota = auto_issue_quota - 1, updated_at = ?
+                       WHERE settings_id = 1 AND auto_issue_quota > 0""",
+                    (now,),
+                )
+        return {
+            "request_id": request_id,
+            "status": status,
+            "key_id": key_id,
+            "key": token,
+            "key_shown_once": bool(token),
+        }
+
+    def get_onboarding_settings(self, public: bool = False) -> Dict[str, Any]:
+        with self._lock, self._connect() as connection:
+            row = connection.execute(
+                """SELECT auto_issue_enabled, auto_issue_quota, updated_at
+                   FROM onboarding_settings WHERE settings_id = 1"""
+            ).fetchone()
+        settings = dict(row) if row else {"auto_issue_enabled": 0, "auto_issue_quota": 0, "updated_at": ""}
+        available = bool(settings["auto_issue_enabled"] and settings["auto_issue_quota"] > 0)
+        if public:
+            return {"auto_issue_available": available}
+        return {
+            "auto_issue_enabled": bool(settings["auto_issue_enabled"]),
+            "auto_issue_quota": int(settings["auto_issue_quota"]),
+            "auto_issue_available": available,
+            "updated_at": settings["updated_at"],
+        }
+
+    def update_onboarding_settings(self, enabled: Any, quota: Any) -> Dict[str, Any]:
+        if not isinstance(enabled, bool):
+            raise ValueError("auto_issue_enabled must be true or false")
+        try:
+            quota = int(quota)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("auto_issue_quota must be a non-negative integer") from exc
+        if quota < 0 or quota > 10000:
+            raise ValueError("auto_issue_quota must be between 0 and 10000")
+        with self._lock, self._connect() as connection:
+            connection.execute(
+                """UPDATE onboarding_settings
+                   SET auto_issue_enabled = ?, auto_issue_quota = ?, updated_at = ?
+                   WHERE settings_id = 1""",
+                (1 if enabled else 0, quota, utc_now()),
+            )
+        return self.get_onboarding_settings()
 
     def list_key_requests(self) -> List[Dict[str, Any]]:
         with self._lock, self._connect() as connection:
             rows = connection.execute(
-                """SELECT request_id, email, contact, use_case, device_count, status,
-                          activation_id, created_at, updated_at
+                """SELECT request_id, email, phone_number, contact, use_case, device_count, status,
+                          activation_id, key_id, created_at, updated_at
                    FROM key_requests ORDER BY created_at DESC"""
             ).fetchall()
         return [dict(row) for row in rows]
@@ -1024,19 +1144,20 @@ class GatewayRequestHandler(BaseHTTPRequestHandler):
                 if clean_text(payload.get("website"), 256):
                     self._json(HTTPStatus.CREATED, {"ok": True, "request_id": "accepted"})
                     return
-                request_id = self.gateway_server.store.create_key_request(
+                result = self.gateway_server.store.submit_key_request(
                     payload.get("email"),
                     payload.get("use_case"),
                     payload.get("device_count"),
                     payload.get("contact"),
+                    payload.get("phone_number"),
                 )
             except ConflictError as exc:
-                self._json(HTTPStatus.TOO_MANY_REQUESTS, {"ok": False, "error": str(exc)})
+                self._json(HTTPStatus.CONFLICT, {"ok": False, "error": str(exc)})
                 return
             except (ValueError, TypeError) as exc:
                 self._json(HTTPStatus.BAD_REQUEST, {"ok": False, "error": str(exc)})
                 return
-            self._json(HTTPStatus.CREATED, {"ok": True, "request_id": request_id})
+            self._json(HTTPStatus.CREATED, {"ok": True, **result})
             return
 
         if path == "/api/v1/activations/redeem":
@@ -1173,6 +1294,21 @@ class GatewayRequestHandler(BaseHTTPRequestHandler):
             )
             return
 
+        if path == "/api/v1/admin/onboarding-settings":
+            if not self._admin_authorized():
+                self._admin_unauthorized()
+                return
+            try:
+                payload = self._read_json()
+                settings = self.gateway_server.store.update_onboarding_settings(
+                    payload.get("auto_issue_enabled"), payload.get("auto_issue_quota")
+                )
+            except (ValueError, TypeError) as exc:
+                self._json(HTTPStatus.BAD_REQUEST, {"ok": False, "error": str(exc)})
+                return
+            self._json(HTTPStatus.OK, {"ok": True, **settings})
+            return
+
         if path == "/api/v1/admin/devices" or (
             path.startswith("/api/v1/admin/devices/") and path.endswith("/rotate")
         ):
@@ -1242,6 +1378,12 @@ class GatewayRequestHandler(BaseHTTPRequestHandler):
             self._json(
                 HTTPStatus.OK,
                 {"ok": True, "name": PRODUCT_NAME, "version": VERSION, **self.gateway_server.store.stats()},
+            )
+            return
+        if path == "/api/v1/onboarding/status":
+            self._json(
+                HTTPStatus.OK,
+                {"ok": True, **self.gateway_server.store.get_onboarding_settings(public=True)},
             )
             return
 
@@ -1375,6 +1517,12 @@ class GatewayRequestHandler(BaseHTTPRequestHandler):
             self._json(
                 HTTPStatus.OK,
                 {"ok": True, "activation_codes": self.gateway_server.store.list_activation_codes()},
+            )
+            return
+        if path == "/api/v1/admin/onboarding-settings":
+            self._json(
+                HTTPStatus.OK,
+                {"ok": True, **self.gateway_server.store.get_onboarding_settings()},
             )
             return
         if self._serve_static(path, public=False):

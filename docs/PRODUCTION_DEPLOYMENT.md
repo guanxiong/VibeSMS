@@ -10,7 +10,7 @@
 - 证书：acme.sh + Namecheap DNS-01，自动续期并 reload OpenResty
 - 数据：`/opt/sms-gateway/data/gateway.db`
 - 备份：每天 UTC 03:17 生成 SQLite 在线备份，保留 30 天
-- 当前版本：`0.5.0`，已启用用户 Key 收件箱、Android 绑定、Agent Inbox/OTP API，并提供 VibeSMS Terminal v0.1.0 APK
+- 当前版本：`0.7.0`，已启用额度控制的前台自动签发、人工激活码兜底、用户 Key 收件箱、Android 绑定、Agent Inbox/OTP API，并提供 VibeSMS Terminal v0.1.0 APK
 
 常用操作：
 

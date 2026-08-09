@@ -137,6 +137,7 @@ class GatewayServerTest(unittest.TestCase):
             "POST",
             {
                 "email": "agent@example.com",
+                "phone_number": "+8613800012345",
                 "use_case": "Use my own Android SIM with an Agent.",
                 "device_count": "1",
                 "contact": "wechat-example",
@@ -147,6 +148,7 @@ class GatewayServerTest(unittest.TestCase):
 
         _, requests = self.request("/api/v1/admin/key-requests", admin=True)
         self.assertEqual(requests["requests"][0]["email"], "agent@example.com")
+        self.assertEqual(requests["requests"][0]["phone_number"], "+8613800012345")
         self.assertEqual(requests["requests"][0]["status"], "pending")
 
         status, activation = self.request(
@@ -183,6 +185,87 @@ class GatewayServerTest(unittest.TestCase):
         _, activation_codes = self.request("/api/v1/admin/activation-codes", admin=True)
         self.assertEqual(activation_codes["activation_codes"][0]["status"], "redeemed")
         self.assertEqual(activation_codes["activation_codes"][0]["key_id"], redeemed["key_id"])
+
+    def test_admin_quota_enables_atomic_frontend_key_issuance(self):
+        _, public_status = self.request("/api/v1/onboarding/status")
+        self.assertFalse(public_status["auto_issue_available"])
+
+        status, settings = self.request(
+            "/api/v1/admin/onboarding-settings",
+            "POST",
+            {"auto_issue_enabled": True, "auto_issue_quota": 2},
+            admin=True,
+        )
+        self.assertEqual(status, 200)
+        self.assertTrue(settings["auto_issue_available"])
+        self.assertEqual(settings["auto_issue_quota"], 2)
+
+        status, issued = self.request(
+            "/api/v1/key-requests",
+            "POST",
+            {
+                "email": "self-service@example.com",
+                "phone_number": "+8613900012345",
+                "use_case": "My own Agent registration flow.",
+                "device_count": "1",
+            },
+        )
+        self.assertEqual(status, 201)
+        self.assertEqual(issued["status"], "auto_issued")
+        self.assertTrue(issued["key"].startswith("vbs_live_"))
+        self.assertTrue(issued["key_shown_once"])
+
+        _, key_status = self.request("/api/v1/status", user_token=issued["key"])
+        self.assertEqual(key_status["phone_number"], "+8613900012345")
+        self.assertFalse(key_status["bound"])
+
+        _, settings = self.request("/api/v1/admin/onboarding-settings", admin=True)
+        self.assertEqual(settings["auto_issue_quota"], 1)
+        _, requests = self.request("/api/v1/admin/key-requests", admin=True)
+        self.assertEqual(requests["requests"][0]["status"], "auto_issued")
+        self.assertEqual(requests["requests"][0]["key_id"], issued["key_id"])
+
+        with self.assertRaises(HTTPError) as raised:
+            self.request(
+                "/api/v1/key-requests",
+                "POST",
+                {
+                    "email": "self-service@example.com",
+                    "phone_number": "+8613900012346",
+                    "use_case": "Second active key.",
+                    "device_count": "1",
+                },
+            )
+        self.assertEqual(raised.exception.code, 409)
+        _, settings = self.request("/api/v1/admin/onboarding-settings", admin=True)
+        self.assertEqual(settings["auto_issue_quota"], 1)
+
+        _, second = self.request(
+            "/api/v1/key-requests",
+            "POST",
+            {
+                "email": "second@example.com",
+                "phone_number": "+8613900012346",
+                "use_case": "One more self-service key.",
+                "device_count": "1",
+            },
+        )
+        self.assertEqual(second["status"], "auto_issued")
+        _, public_status = self.request("/api/v1/onboarding/status")
+        self.assertFalse(public_status["auto_issue_available"])
+
+        _, queued = self.request(
+            "/api/v1/key-requests",
+            "POST",
+            {
+                "email": "queued@example.com",
+                "phone_number": "+8613900012347",
+                "use_case": "Queue when quota is empty.",
+                "device_count": "1",
+            },
+        )
+        self.assertEqual(queued["status"], "pending")
+        self.assertEqual(queued["key"], "")
 
     def test_admin_can_disable_unused_activation_code(self):
         _, activation = self.request(

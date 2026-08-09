@@ -67,7 +67,16 @@ select:disabled { cursor: not-allowed; opacity: .58; }
 .key-secret div strong { margin-top: 5px; font-size: 13px; }
 .key-secret code { grid-column: 1 / -1; overflow-x: auto; padding: 12px; background: #09130e; color: #dff8e9; font-size: 12px; white-space: nowrap; }
 .activation-console { display: grid; grid-template-columns: minmax(260px, .7fr) minmax(430px, 1.3fr); gap: 16px; margin-top: 16px; }
-.activation-form, .requests, .activation-codes { border: 1px solid var(--line); border-radius: 14px; background: var(--panel); }
+.activation-form, .onboarding-settings, .requests, .activation-codes { border: 1px solid var(--line); border-radius: 14px; background: var(--panel); }
+.onboarding-sidebar { display: grid; gap: 12px; align-content: start; }
+.onboarding-settings { display: grid; gap: 14px; padding: 18px; border-color: #426c58; background: #101d17; }
+.onboarding-settings label { display: grid; gap: 7px; color: var(--muted); font-size: 11px; }
+.control-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.control-heading span { color: var(--muted); font: 700 9px ui-monospace, monospace; letter-spacing: .12em; }
+.control-heading strong { font-size: 12px; }
+.control-heading strong.is-enabled { color: var(--accent); }
+.onboarding-settings .toggle-field { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 42px; }
+.toggle-field input { width: 20px; min-height: 20px; accent-color: var(--accent); }
 .activation-form { display: grid; gap: 14px; align-content: start; padding: 18px; }
 .activation-form label { display: grid; gap: 7px; color: var(--muted); font-size: 11px; }
 .activation-form .field-help { margin: 0; }

@@ -63,17 +63,27 @@
 
       <section>
         <div class="section-title">
-          <div><p class="eyebrow">ONBOARDING</p><h2>申请与激活码</h2></div>
-          <span class="section-hint">只交付一次性激活码；真实 Key 由用户自行兑换</span>
+          <div><p class="eyebrow">ONBOARDING</p><h2>自动签发与人工审核</h2></div>
+          <span class="section-hint">自动额度按成功签发扣减；用尽后回到人工队列</span>
         </div>
         <div class="activation-console">
-          <form id="activation-form" class="activation-form">
-            <label>申请编号<input id="activation-request" name="request_id" placeholder="vr_…（可选，来自下方申请）"></label>
-            <label>标签<input id="activation-label" name="label" placeholder="测试用户或用途"></label>
-            <label>有效期（天）<input id="activation-days" name="expires_in_days" type="number" min="1" max="365" value="14" required></label>
-            <button class="primary-action" type="submit">生成激活码</button>
-            <p class="field-help">生成后请通过邮箱或微信人工发送。激活码不是 Key，且只显示一次。</p>
-          </form>
+          <div class="onboarding-sidebar">
+            <form id="onboarding-form" class="onboarding-settings">
+              <div class="control-heading"><span>AUTO ISSUE</span><strong id="onboarding-state">正在读取</strong></div>
+              <label class="toggle-field"><span>允许前台自动获得 Key</span><input id="auto-issue-enabled" name="auto_issue_enabled" type="checkbox"></label>
+              <label>剩余自动名额<input id="auto-issue-quota" name="auto_issue_quota" type="number" min="0" max="10000" value="0" required></label>
+              <button class="primary-action" type="submit">保存自动签发设置</button>
+              <p class="field-help">只在成功创建 Key 后扣减 1。关闭或归零时，新申请进入人工审核队列。</p>
+            </form>
+            <form id="activation-form" class="activation-form">
+              <div class="control-heading"><span>MANUAL FALLBACK</span><strong>一次性激活码</strong></div>
+              <label>申请编号<input id="activation-request" name="request_id" placeholder="vr_…（可选，来自下方申请）"></label>
+              <label>标签<input id="activation-label" name="label" placeholder="测试用户或用途"></label>
+              <label>有效期（天）<input id="activation-days" name="expires_in_days" type="number" min="1" max="365" value="14" required></label>
+              <button class="primary-action" type="submit">生成激活码</button>
+              <p class="field-help">人工审核仍然保留。激活码明文只显示一次。</p>
+            </form>
+          </div>
           <div>
             <div id="activation-secret" class="key-secret" hidden>
               <div><span>仅显示一次</span><strong id="activation-secret-label">新激活码</strong></div>
