@@ -25,6 +25,7 @@
     "三步，": "Three steps",
     "把你的": "to connect",
     "号码": "your number",
+    "把你的号码": "to connect your number",
     "交给 Agent。": "to an agent.",
     "没有新的账户体系。自动名额可用时前台直接签发 Key；额度用尽后进入人工审核。Android 首次绑定后换取独立设备凭据。": "No new account system. When public capacity is available, a Key is issued immediately; otherwise the request enters manual review. Android receives a separate device credential after first binding.",
     "自动获得 Key": "Get a Key automatically",

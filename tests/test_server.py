@@ -105,7 +105,7 @@ class GatewayServerTest(unittest.TestCase):
         self.assertIn('href="/admin/"', homepage)
         self.assertIn("VibeSMS-0.4.9.apk", homepage)
         self.assertIn('class="keep-together">“短信列表”，</span>', homepage)
-        self.assertIn('class="keep-together">号码</span>', homepage)
+        self.assertIn('class="keep-together">把你的号码</span>', homepage)
         self.assertIn('class="keep-together">手机短信。</span>', homepage)
         self.assertIn('href="/apply/"', homepage)
         self.assertIn('href="/activate/"', homepage)
