@@ -24,7 +24,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import parse_qs, urlparse
 
 
-VERSION = "0.8.0"
+VERSION = "0.9.0"
 PRODUCT_NAME = "VibeSMS"
 MAX_BODY_BYTES = 1024 * 1024
 STATIC_DIR = Path(__file__).with_name("static")
@@ -1769,6 +1769,7 @@ class GatewayRequestHandler(BaseHTTPRequestHandler):
             {
                 "/": ("site/index.html", "text/html; charset=utf-8"),
                 "/site/app.js": ("site/app.js", "text/javascript; charset=utf-8"),
+                "/site/i18n.js": ("site/i18n.js", "text/javascript; charset=utf-8"),
                 "/site/styles.css": ("site/styles.css", "text/css; charset=utf-8"),
                 "/site/og-vibesms.jpg": ("site/og-vibesms.jpg", "image/jpeg"),
                 "/privacy": ("privacy/index.html", "text/html; charset=utf-8"),

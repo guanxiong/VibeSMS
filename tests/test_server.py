@@ -88,11 +88,20 @@ class GatewayServerTest(unittest.TestCase):
         self.assertIn("data-open-key-dialog", homepage)
         self.assertIn("data-copy-dialog-prompt", homepage)
         self.assertIn("VIBESMS_KEY Secret", homepage)
+        self.assertIn('src="/site/i18n.js"', homepage)
+        self.assertIn('hreflang="en"', homepage)
         self.assertNotIn("即将发布", homepage)
 
         with urlopen(self.base_url + "/site/styles.css", timeout=3) as response:
             self.assertEqual(response.status, 200)
             self.assertIn(".hero", response.read().decode("utf-8"))
+
+        with urlopen(self.base_url + "/site/i18n.js", timeout=3) as response:
+            self.assertEqual(response.status, 200)
+            i18n = response.read().decode("utf-8")
+        self.assertIn("vibesms.locale", i18n)
+        self.assertIn("Your phone number, ready for your agent", i18n)
+        self.assertIn("Data & Privacy Notice", i18n)
 
         with urlopen(self.base_url + "/site/og-vibesms.jpg", timeout=3) as response:
             self.assertEqual(response.status, 200)
@@ -110,6 +119,11 @@ class GatewayServerTest(unittest.TestCase):
             privacy = response.read().decode("utf-8")
         self.assertIn("数据与隐私说明", privacy)
         self.assertIn("不会自动删除", privacy)
+        self.assertIn('src="/site/i18n.js"', privacy)
+
+        for page in ("/apply/", "/activate/", "/inbox/"):
+            with urlopen(self.base_url + page, timeout=3) as response:
+                self.assertIn('src="/site/i18n.js"', response.read().decode("utf-8"))
 
     def test_public_key_inbox_page_does_not_require_admin_auth(self):
         for path, expected in (

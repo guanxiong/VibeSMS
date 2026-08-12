@@ -10,7 +10,7 @@
   --orange: #f0a25f;
   --terminal: #101713;
   --terminal-line: #2a362e;
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
 }
 
 * { box-sizing: border-box; }
@@ -23,8 +23,8 @@ a { color: inherit; }
 .skip-link:focus { transform: translateY(0); }
 
 .topbar, main, footer { width: min(1240px, calc(100% - 48px)); margin-inline: auto; }
-.topbar { height: 82px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); }
-.brand { display: inline-flex; align-items: center; gap: 11px; width: fit-content; font-size: 19px; font-weight: 760; letter-spacing: -.03em; text-decoration: none; }
+.topbar { height: 82px; display: flex; align-items: center; justify-content: flex-start; gap: 24px; border-bottom: 1px solid var(--line); }
+.brand { display: inline-flex; align-items: center; gap: 11px; width: fit-content; margin-right: auto; font-size: 19px; font-weight: 760; letter-spacing: -.03em; text-decoration: none; }
 .brand-mark { display: inline-flex; align-items: end; gap: 2px; width: 25px; height: 25px; padding: 5px; background: var(--ink); }
 .brand-mark i { display: block; width: 3px; background: var(--green-bright); }
 .brand-mark i:nth-child(1) { height: 7px; }
@@ -33,11 +33,16 @@ a { color: inherit; }
 nav { display: flex; gap: 26px; }
 nav a { color: #3d463f; font-size: 12px; font-weight: 680; text-decoration: none; }
 nav a:hover { color: var(--green); }
+.locale-switch { display: inline-flex; align-items: center; flex: 0 0 auto; min-width: 67px; padding: 3px; border: 1px solid var(--line); border-radius: 999px; background: #ebe8de; }
+.locale-switch a { flex: 1; min-width: 28px; padding: 4px 6px; border-radius: 999px; color: var(--muted); font: 750 9px/1 ui-monospace, monospace; text-align: center; text-decoration: none; }
+.locale-switch a[aria-current="true"] { color: white; background: var(--ink); }
 
 .login-layout { min-height: calc(100vh - 164px); display: grid; grid-template-columns: minmax(0, 1fr) minmax(420px, .82fr); gap: clamp(60px, 9vw, 140px); align-items: center; padding: 72px 0 88px; }
 .eyebrow { margin: 0 0 22px; color: var(--green); font: 750 10px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .14em; }
 h1 { margin: 0; font-size: clamp(48px, 6vw, 82px); line-height: 1.01; letter-spacing: -.06em; text-wrap: balance; }
 .keep-together { white-space: nowrap; }
+html[lang="en"] h1 { max-width: 740px; font-size: clamp(46px, 5.4vw, 74px); letter-spacing: -.05em; line-break: auto; overflow-wrap: normal; word-break: normal; }
+html[lang="en"] .keep-together { white-space: normal; }
 .login-copy > p:last-of-type { max-width: 600px; margin: 30px 0 0; color: var(--muted); font-size: 17px; line-height: 1.75; text-wrap: pretty; }
 .login-copy dl { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin: 48px 0 0; padding-top: 21px; border-top: 1px solid var(--line); }
 .login-copy dt { color: #7b827d; font: 700 9px ui-monospace, monospace; letter-spacing: .08em; text-transform: uppercase; }
@@ -111,7 +116,12 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 3px solid 
   nav { gap: 15px; }
   nav a:last-child { display: none; }
   .login-layout { min-height: auto; padding: 52px 0 70px; }
-  h1 { font-size: clamp(43px, 13vw, 62px); }
+  h1 { font-size: clamp(41px, 12vw, 58px); }
+  html[lang="en"] h1 { font-size: clamp(38px, 11vw, 52px); }
+  .keep-together { white-space: normal; }
+  .topbar { gap: 12px; }
+  nav { margin-left: auto; }
+  .login-form input { font-size: 16px; }
   .login-copy > p:last-of-type { font-size: 15px; }
   .login-copy dl { grid-template-columns: 1fr; gap: 14px; }
   .login-form { padding: 22px; box-shadow: 7px 8px 0 var(--paper-deep); }

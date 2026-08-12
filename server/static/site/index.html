@@ -13,7 +13,11 @@
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
     <meta name="twitter:card" content="summary_large_image">
-    <title>VibeSMS — Your phone number, available to your agent</title>
+    <link rel="canonical" href="https://sms.shareapi.ai/">
+    <link rel="alternate" hreflang="zh-CN" href="https://sms.shareapi.ai/?lang=zh">
+    <link rel="alternate" hreflang="en" href="https://sms.shareapi.ai/?lang=en">
+    <link rel="alternate" hreflang="x-default" href="https://sms.shareapi.ai/">
+    <title>VibeSMS — 让 Agent 安全接收手机短信</title>
     <link rel="stylesheet" href="/site/styles.css">
   </head>
   <body>
@@ -112,7 +116,7 @@
           </div>
           <ol>
             <li><span>01</span><p>打开<strong>设置 → 应用 → 应用启动管理</strong>，找到 VibeSMS。</p></li>
-            <li><span>02</span><p>关闭<strong>自动管理</strong>，打开<strong>允许自启动、允许关联启动、允许后台活动</strong>。</p></li>
+            <li><span>02</span><p>关掉<strong>自动管理</strong>，打开<strong>允许自启动、允许关联启动、允许后台活动</strong>。</p></li>
             <li><span>03</span><p>在<strong>电池优化</strong>中将 VibeSMS 设为<strong>不允许优化</strong>；再进入<strong>设置 → 电池 → 更多电池设置</strong>，开启<strong>休眠时始终保持网络连接</strong>。</p></li>
             <li><span>04</span><p>返回 VibeSMS，确认终端状态显示<strong>已允许后台运行</strong>；Web 收件箱可查看最后在线时间。</p></li>
           </ol>
@@ -217,7 +221,7 @@ gh skill install guanxiong/VibeSMS
             <p>安装后可以直接对 Agent 说：</p>
             <ul>
               <li>“检查我的 VibeSMS 终端是否在线。”</li>
-              <li>“先记录游标，然后等待下一条验证码。”</li>
+              <li>“等待下一条新短信，并提取其中的验证码。”</li>
               <li>“读取这个 Key 最近的来电记录。”</li>
             </ul>
           </div>
@@ -326,6 +330,7 @@ gh skill install guanxiong/VibeSMS
       <div><a href="https://github.com/guanxiong/VibeSMS">GitHub</a><a href="https://github.com/guanxiong/VibeSMS/blob/main/SECURITY.md">Security</a><a href="/privacy/">Privacy</a><a href="/inbox/">Inbox</a><a href="/admin/">Admin</a></div>
     </footer>
 
+    <script src="/site/i18n.js" defer></script>
     <script src="/site/app.js" defer></script>
   </body>
 </html>

@@ -1,4 +1,5 @@
 const statusNode = document.querySelector("#cloud-status");
+const tr = (zh, en) => window.VibeSMSI18n?.text(zh, en) ?? zh;
 
 function attributionFor(landing) {
   const parameters = new URLSearchParams(window.location.search);
@@ -21,7 +22,7 @@ async function updateCloudStatus() {
     const payload = await response.json();
     setCloudStatus(`Cloud online · v${String(payload.version || "—")}`, "is-online");
   } catch (_error) {
-    setCloudStatus("Status unavailable", "is-offline");
+    setCloudStatus(tr("服务状态不可用", "Status unavailable"), "is-offline");
   }
 }
 
@@ -42,7 +43,7 @@ function selectCodeTab(tab) {
   codePanels.forEach((panel) => {
     panel.hidden = panel.dataset.codePanel !== target;
   });
-  if (copyCodeButton) copyCodeButton.textContent = "复制";
+  if (copyCodeButton) copyCodeButton.textContent = tr("复制", "Copy");
 }
 
 codeTabs.forEach((tab, index) => {
@@ -65,19 +66,19 @@ async function copyText(button, text, successLabel) {
     await navigator.clipboard.writeText(text.trim());
     button.textContent = successLabel;
   } catch (_error) {
-    button.textContent = "请手动复制";
+    button.textContent = tr("请手动复制", "Copy manually");
   }
 }
 
 copyCodeButton?.addEventListener("click", () => {
   const activePanel = codePanels.find((panel) => !panel.hidden);
-  if (activePanel) copyText(copyCodeButton, activePanel.innerText, "已复制");
+  if (activePanel) copyText(copyCodeButton, activePanel.innerText, tr("已复制", "Copied"));
 });
 
 const copyInstallButton = document.querySelector("[data-copy-install]");
 copyInstallButton?.addEventListener("click", () => {
   const command = copyInstallButton.parentElement?.querySelector("code")?.innerText || "";
-  copyText(copyInstallButton, command, "已复制");
+  copyText(copyInstallButton, command, tr("已复制", "Copied"));
 });
 
 const keyDialog = document.querySelector("#key-dialog");
@@ -96,11 +97,11 @@ async function refreshDialogIssuanceStatus() {
     const response = await fetch("/api/v1/onboarding/status", { cache: "no-store" });
     const result = await response.json();
     status.textContent = result.auto_issue_available
-      ? "自动签发名额可用 · 提交后立即获得 Key"
-      : "自动名额暂不可用 · 提交后进入人工审核";
+      ? tr("自动签发名额可用 · 提交后立即获得 Key", "Instant issue is available · submit to receive a Key")
+      : tr("自动名额暂不可用 · 提交后进入人工审核", "Instant issue is paused · submit for manual review");
     status.dataset.available = result.auto_issue_available ? "true" : "false";
   } catch (_error) {
-    status.textContent = "暂时无法读取名额状态 · 仍可提交申请";
+    status.textContent = tr("暂时无法读取名额状态 · 仍可提交申请", "Capacity status unavailable · you can still apply");
     delete status.dataset.available;
   }
 }
@@ -124,7 +125,7 @@ keyDialogForm?.addEventListener("submit", async (event) => {
   event.preventDefault();
   keyDialogError.textContent = "";
   keyDialogSubmit.disabled = true;
-  keyDialogSubmit.textContent = "正在提交…";
+  keyDialogSubmit.textContent = tr("正在提交…", "Submitting…");
   try {
     const fields = new FormData(keyDialogForm);
     const payload = { ...Object.fromEntries(fields), ...attributionFor("home") };
@@ -134,7 +135,7 @@ keyDialogForm?.addEventListener("submit", async (event) => {
       body: JSON.stringify(payload)
     });
     const result = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(result.error || "提交失败，请稍后重试。");
+    if (!response.ok) throw new Error(window.VibeSMSI18n?.isEnglish ? "Submission failed. Please try again." : (result.error || "提交失败，请稍后重试。"));
     keyRequestView.hidden = true;
     if (result.key) {
       sessionStorage.setItem("vibesms.inbox.key", result.key);
@@ -154,21 +155,21 @@ keyDialogForm?.addEventListener("submit", async (event) => {
     const arrow = document.createElement("span");
     arrow.textContent = "→";
     arrow.setAttribute("aria-hidden", "true");
-    keyDialogSubmit.replaceChildren(document.createTextNode("提交并获取 Key "), arrow);
+    keyDialogSubmit.replaceChildren(document.createTextNode(`${tr("提交并获取 Key", "Submit and get a Key")} `), arrow);
   }
 });
 
 document.querySelector("[data-copy-issued-key]")?.addEventListener("click", (event) => {
   const value = document.querySelector("#dialog-issued-key")?.textContent || "";
-  copyText(event.currentTarget, value, "Key 已复制");
+  copyText(event.currentTarget, value, tr("Key 已复制", "Key copied"));
 });
 
 document.querySelector("[data-copy-dialog-install]")?.addEventListener("click", (event) => {
   const value = document.querySelector("#dialog-install-command")?.textContent || "";
-  copyText(event.currentTarget, value, "命令已复制");
+  copyText(event.currentTarget, value, tr("命令已复制", "Command copied"));
 });
 
 document.querySelector("[data-copy-dialog-prompt]")?.addEventListener("click", (event) => {
   const value = document.querySelector("#dialog-setup-prompt")?.textContent || "";
-  copyText(event.currentTarget, value, "Prompt 已复制");
+  copyText(event.currentTarget, value, tr("Prompt 已复制", "Prompt copied"));
 });

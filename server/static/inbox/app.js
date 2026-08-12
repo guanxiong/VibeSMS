@@ -7,6 +7,7 @@ const loginForm = document.querySelector("#login-form");
 const keyInput = document.querySelector("#key-input");
 const loginButton = document.querySelector("#login-button");
 const loginError = document.querySelector("#login-error");
+const tr = (zh, en) => window.VibeSMSI18n?.text(zh, en) ?? zh;
 
 const escapeHtml = (value = "") => String(value).replace(/[&<>'"]/g, character => ({
   "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;"
@@ -27,16 +28,16 @@ function formatTime(value) {
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime())
     ? escapeHtml(value)
-    : parsed.toLocaleString("zh-CN", { hour12: false, timeZoneName: "short" });
+    : parsed.toLocaleString(window.VibeSMSI18n?.isEnglish ? "en-US" : "zh-CN", { hour12: false, timeZoneName: "short" });
 }
 
 function formatElapsed(seconds) {
   if (!Number.isFinite(seconds) || seconds < 0) return "";
-  if (seconds < 10) return "刚刚";
-  if (seconds < 60) return `${Math.floor(seconds)} 秒前`;
-  if (seconds < 3600) return `${Math.floor(seconds / 60)} 分钟前`;
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)} 小时前`;
-  return `${Math.floor(seconds / 86400)} 天前`;
+  if (seconds < 10) return tr("刚刚", "just now");
+  if (seconds < 60) return tr(`${Math.floor(seconds)} 秒前`, `${Math.floor(seconds)}s ago`);
+  if (seconds < 3600) return tr(`${Math.floor(seconds / 60)} 分钟前`, `${Math.floor(seconds / 60)}m ago`);
+  if (seconds < 86400) return tr(`${Math.floor(seconds / 3600)} 小时前`, `${Math.floor(seconds / 3600)}h ago`);
+  return tr(`${Math.floor(seconds / 86400)} 天前`, `${Math.floor(seconds / 86400)}d ago`);
 }
 
 function highlightOtp(value) {
@@ -50,7 +51,7 @@ async function keyFetch(path) {
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const error = new Error(payload.error || `请求失败（${response.status}）`);
+    const error = new Error(window.VibeSMSI18n?.isEnglish ? `Request failed (${response.status})` : (payload.error || `请求失败（${response.status}）`));
     error.status = response.status;
     throw error;
   }
@@ -59,7 +60,7 @@ async function keyFetch(path) {
 
 function renderStatus(status) {
   document.querySelector("#phone-number").textContent = status.phone_number || "—";
-  document.querySelector("#sim-slot").textContent = status.sim_slot ? `SIM ${status.sim_slot}` : "尚未绑定";
+  document.querySelector("#sim-slot").textContent = status.sim_slot ? `SIM ${status.sim_slot}` : tr("尚未绑定", "Not bound");
   document.querySelector("#cursor-value").textContent = String(status.cursor || 0);
 
   const lastSeen = status.device?.last_seen || status.device?.last_heartbeat || "";
@@ -67,18 +68,18 @@ function renderStatus(status) {
   if (lastSeen) {
     const elapsed = formatElapsed(Number(status.seconds_since_seen));
     lastOnline.textContent = elapsed ? `${formatTime(lastSeen)} · ${elapsed}` : formatTime(lastSeen);
-    lastOnline.title = `服务器最后收到该终端请求的时间：${formatTime(lastSeen)}`;
+    lastOnline.title = tr(`服务器最后收到该终端请求的时间：${formatTime(lastSeen)}`, `Last terminal request received by the server: ${formatTime(lastSeen)}`);
   } else {
-    lastOnline.textContent = "暂无记录";
+    lastOnline.textContent = tr("暂无记录", "No record");
     lastOnline.removeAttribute("title");
   }
 
   const deviceState = document.querySelector("#device-state");
   const indicator = document.createElement("i");
-  let label = "尚未绑定";
+  let label = tr("尚未绑定", "Not bound");
   let className = "is-offline";
   if (status.bound) {
-    label = status.online ? "终端在线" : "终端离线";
+    label = status.online ? tr("终端在线", "Terminal online") : tr("终端离线", "Terminal offline");
     className = status.online ? "is-online" : "is-offline";
   }
   deviceState.className = className;
@@ -88,25 +89,25 @@ function renderStatus(status) {
   notice.hidden = status.bound;
   notice.textContent = status.bound
     ? ""
-    : "这个 Key 还没有绑定 Android 终端。请在手机上安装 VibeSMS APK，输入同一个 Key 并选择实际 SIM 卡槽。";
+    : tr("这个 Key 还没有绑定 Android 终端。请在手机上安装 VibeSMS APK，输入同一个 Key 并选择实际 SIM 卡槽。", "This Key is not bound to an Android terminal yet. Install the VibeSMS APK, enter the same Key, and choose the physical SIM slot.");
 }
 
 function renderEvents(events) {
   const list = document.querySelector("#event-list");
   if (!events.length) {
-    list.innerHTML = '<li class="event-empty">当前筛选下还没有消息。</li>';
+    list.innerHTML = `<li class="event-empty">${tr("当前筛选下还没有消息。", "No events match this filter yet.")}</li>`;
     return;
   }
   list.innerHTML = events.map(event => {
     const isCall = event.event_type === "call";
     const isTest = event.event_type === "test";
-    const content = isCall ? (event.call_type || event.content || "来电") : (event.content || "");
-    const kindLabel = isCall ? "来电" : (isTest ? "测试" : "短信");
+    const content = isCall ? (event.call_type || event.content || tr("来电", "Incoming call")) : (event.content || "");
+    const kindLabel = isCall ? tr("来电", "CALL") : (isTest ? tr("测试", "TEST") : tr("短信", "SMS"));
     return `
       <li class="event-item">
         <span class="event-kind ${isCall ? "call" : (isTest ? "test" : "sms")}">${kindLabel}</span>
-        <div class="event-sender"><span>来源</span><strong>${escapeHtml(event.sender || "未知")}</strong></div>
-        <div class="event-message"><span>${isCall ? "状态" : "内容"}</span><p>${highlightOtp(content)}</p></div>
+        <div class="event-sender"><span>${tr("来源", "SOURCE")}</span><strong>${escapeHtml(event.sender || tr("未知", "Unknown"))}</strong></div>
+        <div class="event-message"><span>${isCall ? tr("状态", "STATUS") : tr("内容", "CONTENT")}</span><p>${highlightOtp(content)}</p></div>
         <time class="event-time" datetime="${escapeHtml(event.received_at || "")}">${formatTime(event.received_at)}</time>
       </li>`;
   }).join("");
@@ -134,7 +135,7 @@ async function refreshInbox() {
   const refreshLabel = document.querySelector("#refresh-label");
   const refreshButton = document.querySelector("#refresh-button");
   refreshButton.disabled = true;
-  refreshLabel.textContent = "正在读取…";
+  refreshLabel.textContent = tr("正在读取…", "Loading…");
   const type = state.type ? `&type=${encodeURIComponent(state.type)}` : "";
   try {
     const [status, inbox] = await Promise.all([
@@ -143,13 +144,13 @@ async function refreshInbox() {
     ]);
     renderStatus(status);
     renderEvents(inbox.events || []);
-    refreshLabel.textContent = `刚刚更新 · ${formatTime(new Date().toISOString())}`;
+    refreshLabel.textContent = tr(`刚刚更新 · ${formatTime(new Date().toISOString())}`, `Updated just now · ${formatTime(new Date().toISOString())}`);
   } catch (error) {
     if (error.status === 401) {
-      showLogin("Key 无效、已轮换或已被禁用，请检查后重试。");
+      showLogin(tr("Key 无效、已轮换或已被禁用，请检查后重试。", "The Key is invalid, rotated, or disabled. Check it and try again."));
       return;
     }
-    refreshLabel.textContent = `读取失败：${error.message}`;
+    refreshLabel.textContent = tr(`读取失败：${error.message}`, `Failed to load: ${error.message}`);
   } finally {
     refreshButton.disabled = false;
   }
@@ -158,7 +159,7 @@ async function refreshInbox() {
 async function authenticate(key) {
   state.key = key;
   loginButton.disabled = true;
-  loginButton.textContent = "正在验证…";
+  loginButton.textContent = tr("正在验证…", "Verifying…");
   loginError.textContent = "";
   try {
     const status = await keyFetch("/api/v1/status");
@@ -170,11 +171,11 @@ async function authenticate(key) {
     state.key = "";
     sessionStorage.removeItem(STORAGE_KEY);
     loginError.textContent = error.status === 401
-      ? "Key 无效、已轮换或已被禁用，请检查后重试。"
-      : `暂时无法登录：${error.message}`;
+      ? tr("Key 无效、已轮换或已被禁用，请检查后重试。", "The Key is invalid, rotated, or disabled. Check it and try again.")
+      : tr(`暂时无法登录：${error.message}`, `Unable to sign in: ${error.message}`);
   } finally {
     loginButton.disabled = false;
-    loginButton.innerHTML = '打开我的收件箱 <span aria-hidden="true">→</span>';
+    loginButton.innerHTML = `${tr("打开我的收件箱", "Open my inbox")} <span aria-hidden="true">→</span>`;
   }
 }
 

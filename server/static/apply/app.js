@@ -1,6 +1,7 @@
 const form = document.querySelector("#request-form");
 const submit = document.querySelector("#submit-request");
 const error = document.querySelector("#form-error");
+const tr = (zh, en) => window.VibeSMSI18n?.text(zh, en) ?? zh;
 
 function attributionFor(landing) {
   const parameters = new URLSearchParams(window.location.search);
@@ -16,11 +17,11 @@ async function refreshIssuanceStatus() {
     const response = await fetch("/api/v1/onboarding/status", { cache: "no-store" });
     const result = await response.json();
     status.textContent = result.auto_issue_available
-      ? "自动签发名额可用 · 提交后立即获得 Key"
-      : "自动名额暂不可用 · 提交后进入人工审核";
+      ? tr("自动签发名额可用 · 提交后立即获得 Key", "Instant issue is available · submit to receive a Key")
+      : tr("自动名额暂不可用 · 提交后进入人工审核", "Instant issue is paused · submit for manual review");
     status.dataset.available = result.auto_issue_available ? "true" : "false";
   } catch (_error) {
-    status.textContent = "暂时无法读取名额状态 · 仍可提交申请";
+    status.textContent = tr("暂时无法读取名额状态 · 仍可提交申请", "Capacity status unavailable · you can still apply");
   }
 }
 
@@ -37,7 +38,7 @@ form.addEventListener("submit", async event => {
       body: JSON.stringify(payload)
     });
     const result = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(result.error || "提交失败，请稍后重试。");
+    if (!response.ok) throw new Error(window.VibeSMSI18n?.isEnglish ? "Submission failed. Please try again." : (result.error || "提交失败，请稍后重试。"));
     form.hidden = true;
     if (result.key) {
       sessionStorage.setItem("vibesms.inbox.key", result.key);
@@ -57,9 +58,9 @@ form.addEventListener("submit", async event => {
 document.querySelector("#copy-key").addEventListener("click", async event => {
   try {
     await navigator.clipboard.writeText(document.querySelector("#issued-key").textContent);
-    event.currentTarget.textContent = "已复制";
+    event.currentTarget.textContent = tr("已复制", "Copied");
   } catch (_error) {
-    window.alert("复制失败，请手工复制并立即保存到 Secret 管理器。");
+    window.alert(tr("复制失败，请手工复制并立即保存到 Secret 管理器。", "Copy failed. Copy it manually and save it to your secret manager now."));
   }
 });
 
@@ -69,16 +70,16 @@ async function copyHandoff(button, selector, successLabel) {
     await navigator.clipboard.writeText(value.trim());
     button.textContent = successLabel;
   } catch (_error) {
-    window.alert("复制失败，请手工选择并复制。");
+    window.alert(tr("复制失败，请手工选择并复制。", "Copy failed. Select and copy it manually."));
   }
 }
 
 document.querySelector("#copy-skill-command").addEventListener("click", event => {
-  copyHandoff(event.currentTarget, "#setup-skill-command", "命令已复制");
+  copyHandoff(event.currentTarget, "#setup-skill-command", tr("命令已复制", "Command copied"));
 });
 
 document.querySelector("#copy-agent-prompt").addEventListener("click", event => {
-  copyHandoff(event.currentTarget, "#setup-agent-prompt", "Prompt 已复制");
+  copyHandoff(event.currentTarget, "#setup-agent-prompt", tr("Prompt 已复制", "Prompt copied"));
 });
 
 refreshIssuanceStatus();
