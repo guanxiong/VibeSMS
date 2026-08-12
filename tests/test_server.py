@@ -1,6 +1,7 @@
 import base64
 import json
 import os
+import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -10,10 +11,47 @@ from pathlib import Path
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
-from server.app import create_server, extract_otp
+from server.app import GatewayStore, create_server, extract_otp
 
 
 class GatewayServerTest(unittest.TestCase):
+    def test_legacy_key_request_schema_migrates_before_attribution_index(self):
+        with tempfile.TemporaryDirectory() as directory:
+            database = str(Path(directory) / "legacy.db")
+            with sqlite3.connect(database) as connection:
+                connection.executescript(
+                    """
+                    CREATE TABLE key_requests (
+                        request_id TEXT PRIMARY KEY,
+                        email TEXT NOT NULL,
+                        phone_number TEXT NOT NULL DEFAULT '',
+                        contact TEXT NOT NULL DEFAULT '',
+                        use_case TEXT NOT NULL,
+                        device_count TEXT NOT NULL,
+                        status TEXT NOT NULL DEFAULT 'pending',
+                        activation_id TEXT NOT NULL DEFAULT '',
+                        key_id TEXT NOT NULL DEFAULT '',
+                        created_at TEXT NOT NULL,
+                        updated_at TEXT NOT NULL
+                    );
+                    """
+                )
+
+            GatewayStore(database)
+
+            with sqlite3.connect(database) as connection:
+                columns = {
+                    row[1] for row in connection.execute("PRAGMA table_info(key_requests)")
+                }
+                indexes = {
+                    row[1] for row in connection.execute("PRAGMA index_list(key_requests)")
+                }
+            self.assertTrue(
+                {"attribution_source", "attribution_campaign", "attribution_landing"}
+                <= columns
+            )
+            self.assertIn("idx_key_requests_attribution", indexes)
+
     def setUp(self):
         self.tempdir = tempfile.TemporaryDirectory()
         database = str(Path(self.tempdir.name) / "gateway.db")

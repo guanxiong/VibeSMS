@@ -290,8 +290,6 @@ class GatewayStore:
             updated_at TEXT NOT NULL
         );
         CREATE INDEX IF NOT EXISTS idx_key_requests_status ON key_requests(status, created_at DESC);
-        CREATE INDEX IF NOT EXISTS idx_key_requests_attribution
-            ON key_requests(attribution_source, attribution_campaign, created_at DESC);
         CREATE TABLE IF NOT EXISTS campaigns (
             campaign_id TEXT PRIMARY KEY,
             code TEXT NOT NULL UNIQUE,
@@ -342,6 +340,10 @@ class GatewayStore:
             self._ensure_column(connection, "key_requests", "attribution_source", "TEXT NOT NULL DEFAULT 'direct'")
             self._ensure_column(connection, "key_requests", "attribution_campaign", "TEXT NOT NULL DEFAULT 'none'")
             self._ensure_column(connection, "key_requests", "attribution_landing", "TEXT NOT NULL DEFAULT 'apply'")
+            connection.execute(
+                """CREATE INDEX IF NOT EXISTS idx_key_requests_attribution
+                   ON key_requests(attribution_source, attribution_campaign, created_at DESC)"""
+            )
             connection.execute("UPDATE devices SET first_seen = last_seen WHERE first_seen = ''")
             connection.execute(
                 """INSERT OR IGNORE INTO onboarding_settings (
