@@ -6,6 +6,9 @@ import android.net.ConnectivityManager;
 import android.net.Network;
 import android.net.NetworkCapabilities;
 import android.os.BatteryManager;
+import android.telephony.PhoneNumberUtils;
+import android.telephony.SubscriptionManager;
+import android.telephony.TelephonyManager;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -77,7 +80,7 @@ final class EventPayloads {
             int simSlot,
             int subscriptionId,
             String callType) {
-        String normalizedSender = sender == null || sender.isBlank() ? "unknown" : sender;
+        String normalizedSender = normalizeSender(context, sender, subscriptionId);
         String stable = type + "|" + normalizedSender + "|" + content + "|"
                 + receivedAt + "|" + simSlot + "|" + subscriptionId;
         JSONObject payload = new JSONObject();
@@ -102,6 +105,36 @@ final class EventPayloads {
             throw new IllegalStateException("cannot create event", error);
         }
         return payload;
+    }
+
+    private static String normalizeSender(
+            Context context, String sender, int subscriptionId) {
+        String value = sender == null ? "" : sender.trim();
+        if (value.isBlank() || "unknown".equalsIgnoreCase(value)) {
+            return "unknown";
+        }
+        TelephonyManager manager = context.getSystemService(TelephonyManager.class);
+        if (manager == null) {
+            return value;
+        }
+        String countryIso;
+        try {
+            if (SubscriptionManager.isValidSubscriptionId(subscriptionId)) {
+                manager = manager.createForSubscriptionId(subscriptionId);
+            }
+            countryIso = manager.getNetworkCountryIso();
+            if (countryIso == null || countryIso.isBlank()) {
+                countryIso = manager.getSimCountryIso();
+            }
+        } catch (RuntimeException ignored) {
+            return value;
+        }
+        if (countryIso == null || countryIso.isBlank()) {
+            return value;
+        }
+        String e164 = PhoneNumberUtils.formatNumberToE164(
+                value, countryIso.toUpperCase(Locale.ROOT));
+        return e164 == null || e164.isBlank() ? value : e164;
     }
 
     static String network(Context context) {

@@ -10,7 +10,7 @@
 - 证书：acme.sh + Namecheap DNS-01，自动续期并 reload OpenResty
 - 数据：`/opt/sms-gateway/data/gateway.db`
 - 备份：每天 UTC 03:17 生成 SQLite 在线备份，保留 30 天
-- 当前版本：`0.8.0`，已启用首页弹框自动签发、人工激活码兜底、用户 Key 收件箱、Agent USB 自动配置、Android 绑定和 Agent Inbox/OTP API，并提供 VibeSMS Terminal v0.2.0 APK
+- 当前版本：`0.8.0`，已启用首页弹框自动签发、人工激活码兜底、用户 Key 收件箱、Agent USB 自动配置、Android 绑定和 Agent Inbox/OTP API，并提供 VibeSMS Terminal v0.4.0 APK
 
 常用操作：
 
@@ -23,9 +23,9 @@ curl https://sms.shareapi.ai/api/health
 
 Android Terminal 下载：
 
-- APK：<https://github.com/guanxiong/VibeSMS/releases/download/v0.2.0/VibeSMS-0.2.0.apk>
-- Release 与校验值：<https://github.com/guanxiong/VibeSMS/releases/tag/v0.2.0>
-- SHA-256：`b86f1a8201ea07e48c38f77a1e7de26a3687c384bc8fa71c709c9461fbfc8ca9`
+- APK：<https://github.com/guanxiong/VibeSMS/releases/download/v0.4.0/VibeSMS-0.4.0.apk>
+- Release 与校验值：<https://github.com/guanxiong/VibeSMS/releases/tag/v0.4.0>
+- SHA-256：`1bdf1bf4a81120729124d5228c1ca4d09b6149f9f233e6b1472695965da19f36`
 
 发布私钥只保存在维护者机器。GitHub Actions 负责编译未签名 Release Candidate，本地使用官方 `apksigner` 完成签名后再上传 GitHub Release。
 
@@ -63,7 +63,7 @@ SMS_GATEWAY_ADMIN_URL=https://sms.example.com ./bin/provision-device PIXEL-02 "�
 
 打开 `https://sms.shareapi.ai/admin/`，在“号码与用户 Key”中填写手机号并签发。可选择预绑定已有设备与 SIM，也可留空等待 VibeSMS Terminal 首次绑定。Key 明文只显示一次，应立即保存到用户的 Agent Secret。
 
-用户可打开 `https://sms.shareapi.ai/inbox/`，使用自己的 Key 查看该 Key 对应号码的终端状态、短信与来电。Key 只保存在当前浏览器标签页的 `sessionStorage`，不会获得管理员权限，也不能读取其他 Key 的事件。
+用户可打开 `https://sms.shareapi.ai/inbox/`，使用自己的 Key 查看该 Key 对应号码的终端状态、短信与来电。Android 端可使用 `https://sms.shareapi.ai/inbox/#key=...` 直接跳转；URL 片段不会随 HTTP 请求发送，页面读取后立即清除，并仅在当前浏览器标签页的 `sessionStorage` 中保存。Key 不会获得管理员权限，也不能读取其他 Key 的事件。
 
 管理端支持轮换、禁用和解绑；服务端数据库只保存 Key 的 SHA-256 哈希。Agent 将 Key 配置为 `VIBESMS_KEY`，使用仓库中的 `skills/vibesms/` 查询终端状态、读取 Inbox 或等待验证码。
 
@@ -73,7 +73,7 @@ SMS_GATEWAY_ADMIN_URL=https://sms.example.com ./bin/provision-device PIXEL-02 "�
 python3 skills/vibesms/scripts/setup_android.py --sim-slot 1
 ```
 
-脚本会校验 GitHub Release 的 SHA-256、安装 APK、授予运行权限、换取设备凭据并等待 Key-scoped `status` 返回 `bound=true` 与 `online=true`。用户 Key 只从 `VIBESMS_KEY` Secret 读取，不写入 Prompt 或脚本日志。
+脚本会校验 GitHub Release 的 SHA-256、安装 APK、授予运行权限、换取设备凭据并等待 Key-scoped `status` 返回 `bound=true` 与 `online=true`。用户 Key 只从 `VIBESMS_KEY` Secret 读取，不写入 Prompt 或脚本日志；绑定后由 Android Keystore 加密保存，以支持本机显示和直接打开 Web 收件箱。
 
 用户 Key 不能上传设备事件；首次绑定换取的设备 Token 不能读取 Inbox。一个启用中的手机号与一个设备 SIM 绑定最多各对应一个启用中的用户 Key。
 
@@ -96,6 +96,8 @@ https://sms.shareapi.ai/api/v1/events
 配置成功后移除 `adb reverse`，再次执行发送通道测试。收到 `SMS_MVP_OK` 即证明链路不再依赖 USB。
 
 ## Android 心跳与自动补发
+
+VibeSMS Terminal 同时使用约 9 分钟一次的 `AlarmManager.setAndAllowWhileIdle` 锁屏心跳和 15 分钟 `JobScheduler` 兜底。锁屏心跳只在 HTTPS 请求期间持有最长 45 秒的 WakeLock；绑定页面会显示电池优化豁免状态，并提供“允许锁屏保活”入口。通过 ADB 自动配置时，脚本会尝试把应用加入设备 Doze allowlist。华为等厂商系统仍应在“应用启动管理”中允许自启动、关联启动和后台活动。
 
 SmsForwarder 3.5.0 可用“自动任务”组合实现可靠性补强：
 

@@ -65,7 +65,7 @@ class GatewayServerTest(unittest.TestCase):
             homepage = response.read().decode("utf-8")
         self.assertIn("让你的 Agent", homepage)
         self.assertIn('href="/admin/"', homepage)
-        self.assertIn("VibeSMS-0.2.0.apk", homepage)
+        self.assertIn("VibeSMS-0.4.0.apk", homepage)
         self.assertIn('class="keep-together">“短信列表”，</span>', homepage)
         self.assertIn('class="keep-together">号码</span>', homepage)
         self.assertIn('class="keep-together">手机短信。</span>', homepage)
@@ -119,6 +119,17 @@ class GatewayServerTest(unittest.TestCase):
         self.assertIn('content="noindex,nofollow"', inbox_html)
         self.assertIn("vbs_live_", inbox_html)
         self.assertNotIn("/api/v1/admin", inbox_html)
+
+        inbox_script = (
+            Path(__file__).resolve().parents[1]
+            / "server"
+            / "static"
+            / "inbox"
+            / "app.js"
+        ).read_text(encoding="utf-8")
+        self.assertIn("window.location.hash", inbox_script)
+        self.assertIn("window.history.replaceState", inbox_script)
+        self.assertIn('parameters.get("key")', inbox_script)
 
         with self.assertRaises(HTTPError) as raised:
             self.request("/api/v1/inbox?order=desc", user_token="not-a-key")

@@ -8,8 +8,9 @@ VibeSMS Terminal turns an Android 10+ phone into a private SMS and incoming-call
 - Resolves the subscription and SIM slot on dual-SIM devices.
 - Persists events in a SQLite outbox before attempting delivery.
 - Retries failed uploads with bounded exponential backoff after connectivity returns.
-- Schedules a heartbeat and outbox drain at least every 15 minutes.
-- Never persists the user Key; only the scoped device upload token is retained.
+- Sends a Doze-aware heartbeat about every 9 minutes, with the 15-minute JobScheduler path retained as a fallback.
+- Uses a short, bounded wake lock only while a lock-screen heartbeat is in flight.
+- Encrypts both the scoped device upload token and each bound inbox Key with Android Keystore.
 
 Android may ask for SMS, phone-state, and call-log permissions. The call-log permission is used only to improve caller-number availability; some devices or carrier builds may still report an incoming caller as unknown.
 
@@ -40,7 +41,7 @@ After saving the user Key as the local `VIBESMS_KEY` Secret, connect and unlock 
 python3 skills/vibesms/scripts/setup_android.py --sim-slot 1
 ```
 
-The script downloads the signed v0.2.0 APK and `SHA256SUMS`, verifies it, installs it, grants required runtime permissions, invokes a receiver protected by Android's shell-only `DUMP` permission, and verifies the Key-scoped cloud status. Use `--sim-slot 2` only after explicitly choosing the second active SIM. The user Key is never persisted by the app or printed by the script.
+The script downloads the signed v0.4.0 APK and `SHA256SUMS`, verifies it, installs it, grants required runtime permissions, adds the terminal to the Doze allowlist when the device permits it, invokes a receiver protected by Android's shell-only `DUMP` permission, and verifies the Key-scoped cloud status. Use `--sim-slot 2` only after explicitly choosing the second active SIM. The user Key is encrypted by Android Keystore and is never printed by the script.
 
 ### Manual setup
 

@@ -36,11 +36,13 @@ final class TerminalConfig {
         final String phoneNumber;
         final int simSlot;
         final String carrier;
+        final String userKey;
 
-        Binding(String phoneNumber, int simSlot, String carrier) {
+        Binding(String phoneNumber, int simSlot, String carrier, String userKey) {
             this.phoneNumber = phoneNumber;
             this.simSlot = simSlot;
             this.carrier = carrier;
+            this.userKey = userKey;
         }
     }
 
@@ -74,10 +76,10 @@ final class TerminalConfig {
     }
 
     static synchronized void addBinding(
-            Context context, String phoneNumber, int simSlot, String carrier) {
+            Context context, String phoneNumber, int simSlot, String carrier, String userKey) {
         List<Binding> bindings = bindings(context);
         bindings.removeIf(item -> item.simSlot == simSlot);
-        bindings.add(new Binding(phoneNumber, simSlot, carrier));
+        bindings.add(new Binding(phoneNumber, simSlot, carrier, userKey));
         JSONArray array = new JSONArray();
         for (Binding binding : bindings) {
             JSONObject object = new JSONObject();
@@ -85,6 +87,9 @@ final class TerminalConfig {
                 object.put("phone_number", binding.phoneNumber);
                 object.put("sim_slot", binding.simSlot);
                 object.put("carrier", binding.carrier);
+                if (binding.userKey != null && !binding.userKey.isBlank()) {
+                    object.put("user_key_encrypted", encrypt(binding.userKey));
+                }
             } catch (JSONException error) {
                 throw new IllegalStateException("cannot store binding", error);
             }
@@ -102,10 +107,20 @@ final class TerminalConfig {
                 JSONObject object = array.getJSONObject(index);
                 int slot = object.optInt("sim_slot", 0);
                 if (slot == 1 || slot == 2) {
+                    String encryptedKey = object.optString("user_key_encrypted", "");
+                    String userKey = "";
+                    if (!encryptedKey.isBlank()) {
+                        try {
+                            userKey = decrypt(encryptedKey);
+                        } catch (RuntimeException ignored) {
+                            // Keep the binding visible even if its optional read Key is unavailable.
+                        }
+                    }
                     result.add(new Binding(
                             object.optString("phone_number", ""),
                             slot,
-                            object.optString("carrier", "")));
+                            object.optString("carrier", ""),
+                            userKey));
                 }
             }
         } catch (JSONException ignored) {

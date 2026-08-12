@@ -19,6 +19,12 @@ public final class CallReceiver extends BroadcastReceiver {
         if (state == null || state.isBlank()) {
             return;
         }
+        // With READ_PHONE_STATE and READ_CALL_LOG Android sends this broadcast twice in
+        // an unspecified order. Only one copy contains EXTRA_INCOMING_NUMBER. Ignoring
+        // the copy without that extra prevents it from winning duplicate suppression.
+        if (!intent.hasExtra(TelephonyManager.EXTRA_INCOMING_NUMBER)) {
+            return;
+        }
         SharedPreferences preferences = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
         long now = System.currentTimeMillis();
         if (state.equals(preferences.getString("last_state", ""))
@@ -28,7 +34,9 @@ public final class CallReceiver extends BroadcastReceiver {
 
         String number = intent.getStringExtra(TelephonyManager.EXTRA_INCOMING_NUMBER);
         if (number == null || number.isBlank()) {
-            number = preferences.getString("last_number", "unknown");
+            number = TelephonyManager.EXTRA_STATE_RINGING.equals(state)
+                    ? "unknown"
+                    : preferences.getString("last_number", "unknown");
         }
         int simSlot = SimResolver.resolveSlot(context, intent);
         if (simSlot == 0) {

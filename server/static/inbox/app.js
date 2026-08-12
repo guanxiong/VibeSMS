@@ -12,6 +12,16 @@ const escapeHtml = (value = "") => String(value).replace(/[&<>'"]/g, character =
   "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;"
 })[character]);
 
+function consumeLinkedKey() {
+  if (!window.location.hash) return "";
+  const parameters = new URLSearchParams(window.location.hash.slice(1));
+  const key = (parameters.get("key") || "").trim();
+  if (parameters.has("key")) {
+    window.history.replaceState(null, "", window.location.pathname + window.location.search);
+  }
+  return key.startsWith("vbs_live_") ? key : "";
+}
+
 function formatTime(value) {
   if (!value) return "—";
   const parsed = new Date(value);
@@ -170,5 +180,7 @@ document.addEventListener("visibilitychange", () => {
   if (!document.hidden && state.key) refreshInbox();
 });
 
+const linkedKey = consumeLinkedKey();
 const savedKey = sessionStorage.getItem(STORAGE_KEY);
-if (savedKey) authenticate(savedKey);
+if (linkedKey) authenticate(linkedKey);
+else if (savedKey) authenticate(savedKey);

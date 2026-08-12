@@ -50,6 +50,7 @@ final class UploadScheduler {
     }
 
     static void scheduleHeartbeat(Context context) {
+        KeepAliveReceiver.schedule(context);
         JobScheduler scheduler = context.getSystemService(JobScheduler.class);
         if (scheduler == null) {
             return;

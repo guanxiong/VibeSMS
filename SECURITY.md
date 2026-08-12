@@ -16,4 +16,5 @@ Until the first tagged release, only the latest commit on `main` receives securi
 
 - Device credentials, Agent keys, administrator passwords, Android signing keys, and `.env` files must never be committed.
 - Production data under `data/` and local configuration under `config/local.env` are intentionally ignored.
+- Android stores its device token and bound inbox Keys encrypted with Android Keystore. Direct inbox links pass the Key in a URL fragment, which is removed immediately after being copied into tab-scoped `sessionStorage` and is not sent in the HTTP request.
 - A leaked key must be revoked or rotated; removing it from Git history is not sufficient.

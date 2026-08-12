@@ -49,7 +49,7 @@ public final class ProvisionReceiver extends BroadcastReceiver {
                         userKey, TerminalConfig.deviceId(context), simSlot);
                 TerminalConfig.replaceDeviceToken(context, result.deviceToken);
                 TerminalConfig.addBinding(
-                        context, result.phoneNumber, simSlot, selected.carrier);
+                        context, result.phoneNumber, simSlot, selected.carrier, userKey);
                 UploadScheduler.scheduleHeartbeat(context);
                 try {
                     ApiClient.upload(

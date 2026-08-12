@@ -17,7 +17,7 @@ from urllib.request import urlopen
 from vibesms import config, request_json
 
 
-RELEASE_VERSION = "0.2.0"
+RELEASE_VERSION = "0.4.0"
 RELEASE_BASE = "https://github.com/guanxiong/VibeSMS/releases/download/v" + RELEASE_VERSION
 APK_NAME = "VibeSMS-%s.apk" % RELEASE_VERSION
 PACKAGE = "ai.shareapi.vibesms"
@@ -169,6 +169,17 @@ def main() -> int:
                     )
                 except RuntimeError:
                     warnings.append(permission + " was not granted; caller numbers may be unavailable")
+            try:
+                run_adb(
+                    adb,
+                    serial,
+                    ["shell", "dumpsys", "deviceidle", "whitelist", "+" + PACKAGE],
+                    "battery optimization exemption",
+                )
+            except RuntimeError:
+                warnings.append(
+                    "battery optimization exemption was not applied; enable lock-screen keepalive in the app"
+                )
             # Avoid a host shell so the Key is not expanded, logged, or printed by shell tooling.
             provision_output = run_adb(
                 adb,

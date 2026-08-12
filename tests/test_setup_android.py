@@ -16,9 +16,9 @@ SPEC.loader.exec_module(SETUP_ANDROID)
 
 class AndroidSetupScriptTest(unittest.TestCase):
     def test_release_asset_is_versioned_and_https(self):
-        self.assertEqual(SETUP_ANDROID.RELEASE_VERSION, "0.2.0")
+        self.assertEqual(SETUP_ANDROID.RELEASE_VERSION, "0.4.0")
         self.assertTrue(SETUP_ANDROID.RELEASE_BASE.startswith("https://github.com/"))
-        self.assertEqual(SETUP_ANDROID.APK_NAME, "VibeSMS-0.2.0.apk")
+        self.assertEqual(SETUP_ANDROID.APK_NAME, "VibeSMS-0.4.0.apk")
 
     def test_provision_receiver_success_is_accepted(self):
         SETUP_ANDROID.verify_provision_result(
@@ -34,6 +34,29 @@ class AndroidSetupScriptTest(unittest.TestCase):
     def test_missing_receiver_result_is_not_treated_as_success(self):
         with self.assertRaisesRegex(RuntimeError, "no receiver result"):
             SETUP_ANDROID.verify_provision_result("Broadcasting: Intent {...}\n")
+
+    def test_android_keepalive_is_doze_aware_and_bounded(self):
+        root = Path(__file__).resolve().parents[1]
+        receiver = (
+            root
+            / "android"
+            / "app"
+            / "src"
+            / "main"
+            / "java"
+            / "ai"
+            / "shareapi"
+            / "vibesms"
+            / "KeepAliveReceiver.java"
+        ).read_text(encoding="utf-8")
+        manifest = (
+            root / "android" / "app" / "src" / "main" / "AndroidManifest.xml"
+        ).read_text(encoding="utf-8")
+        setup_script = (SCRIPT_DIRECTORY / "setup_android.py").read_text(encoding="utf-8")
+        self.assertIn("setAndAllowWhileIdle", receiver)
+        self.assertIn("WAKE_LOCK_TIMEOUT_MS", receiver)
+        self.assertIn("android.permission.WAKE_LOCK", manifest)
+        self.assertIn("deviceidle", setup_script)
 
 
 if __name__ == "__main__":
