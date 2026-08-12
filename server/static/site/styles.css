@@ -54,6 +54,11 @@ h1 { margin: 0; max-width: 700px; font-size: clamp(52px, 6.2vw, 83px); line-heig
 .hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 36px; }
 .hero-text-link { color: var(--green); font-size: 12px; font-weight: 700; text-decoration: none; text-underline-offset: 5px; }
 .hero-text-link:hover, .hero-text-link:focus-visible { text-decoration: underline; }
+.public-key-availability { display: inline-flex; align-items: center; gap: 8px; width: fit-content; margin: 13px 0 0; color: var(--muted); font: 700 10px/1.45 ui-monospace, monospace; letter-spacing: .025em; }
+.public-key-availability i { width: 7px; height: 7px; flex: 0 0 auto; border-radius: 50%; background: #919891; }
+.public-key-availability[data-available="true"] { color: var(--green); }
+.public-key-availability[data-available="true"] i { background: var(--green); box-shadow: 0 0 0 4px #1d6b4514; }
+.public-key-availability[data-available="false"] i { background: var(--orange); }
 .button { display: inline-flex; align-items: center; justify-content: center; gap: 12px; min-height: 48px; padding: 0 19px; border: 1px solid var(--ink); font-size: 13px; font-weight: 720; text-decoration: none; transition: transform .18s ease, background .18s ease, color .18s ease; }
 .button:hover { transform: translateY(-2px); }
 .button.primary { background: var(--ink); color: white; }

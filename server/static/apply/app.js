@@ -16,9 +16,10 @@ async function refreshIssuanceStatus() {
   try {
     const response = await fetch("/api/v1/onboarding/status", { cache: "no-store" });
     const result = await response.json();
-    status.textContent = result.auto_issue_available
-      ? tr("自动签发名额可用 · 提交后立即获得 Key", "Instant issue is available · submit to receive a Key")
-      : tr("自动名额暂不可用 · 提交后进入人工审核", "Instant issue is paused · submit for manual review");
+    const remaining = Math.max(0, Number(result.auto_issue_remaining) || 0);
+    status.textContent = result.auto_issue_available && remaining > 0
+      ? tr(`自动签发剩余 ${remaining} 个 · 提交后立即获得 Key`, `${remaining} instant ${remaining === 1 ? "Key" : "Keys"} available · issued after submission`)
+      : tr("自动签发名额已用完 · 提交后进入人工审核", "Instant capacity is full · submit for manual review");
     status.dataset.available = result.auto_issue_available ? "true" : "false";
   } catch (_error) {
     status.textContent = tr("暂时无法读取名额状态 · 仍可提交申请", "Capacity status unavailable · you can still apply");

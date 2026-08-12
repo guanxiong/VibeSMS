@@ -124,6 +124,7 @@ class GatewayServerTest(unittest.TestCase):
         self.assertIn('class="keepalive-guide"', homepage)
         self.assertIn('id="key-dialog"', homepage)
         self.assertIn("data-open-key-dialog", homepage)
+        self.assertIn('id="public-key-availability"', homepage)
         self.assertIn("data-copy-dialog-prompt", homepage)
         self.assertIn("VIBESMS_KEY Secret", homepage)
         self.assertIn('src="/site/i18n.js"', homepage)
@@ -141,6 +142,11 @@ class GatewayServerTest(unittest.TestCase):
         self.assertIn("Your phone number, ready for your agent", i18n)
         self.assertIn("Data & Privacy Notice", i18n)
         self.assertIn('element.append(document.createTextNode(" "))', i18n)
+
+        with urlopen(self.base_url + "/site/app.js", timeout=3) as response:
+            site_script = response.read().decode("utf-8")
+        self.assertIn("auto_issue_remaining", site_script)
+        self.assertIn("setInterval(refreshIssuanceAvailability, 30000)", site_script)
 
         with urlopen(self.base_url + "/site/og-vibesms.jpg", timeout=3) as response:
             self.assertEqual(response.status, 200)
@@ -282,6 +288,7 @@ class GatewayServerTest(unittest.TestCase):
     def test_admin_quota_enables_atomic_frontend_key_issuance(self):
         _, public_status = self.request("/api/v1/onboarding/status")
         self.assertFalse(public_status["auto_issue_available"])
+        self.assertEqual(public_status["auto_issue_remaining"], 0)
 
         status, settings = self.request(
             "/api/v1/admin/onboarding-settings",
@@ -292,6 +299,8 @@ class GatewayServerTest(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertTrue(settings["auto_issue_available"])
         self.assertEqual(settings["auto_issue_quota"], 2)
+        _, public_status = self.request("/api/v1/onboarding/status")
+        self.assertEqual(public_status["auto_issue_remaining"], 2)
 
         status, issued = self.request(
             "/api/v1/key-requests",
@@ -314,6 +323,8 @@ class GatewayServerTest(unittest.TestCase):
 
         _, settings = self.request("/api/v1/admin/onboarding-settings", admin=True)
         self.assertEqual(settings["auto_issue_quota"], 1)
+        _, public_status = self.request("/api/v1/onboarding/status")
+        self.assertEqual(public_status["auto_issue_remaining"], 1)
         _, requests = self.request("/api/v1/admin/key-requests", admin=True)
         self.assertEqual(requests["requests"][0]["status"], "auto_issued")
         self.assertEqual(requests["requests"][0]["key_id"], issued["key_id"])

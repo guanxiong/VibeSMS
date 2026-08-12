@@ -89,20 +89,53 @@ const keyDialogError = document.querySelector("#dialog-form-error");
 const keyRequestView = document.querySelector("#key-request-view");
 const keyIssuedView = document.querySelector("#key-issued-view");
 const keyPendingView = document.querySelector("#key-pending-view");
+const publicAvailability = document.querySelector("#public-key-availability");
+let availabilityRefreshTimer = null;
 
-async function refreshDialogIssuanceStatus() {
-  const status = document.querySelector("#dialog-issuance-status");
-  if (!status) return;
+function availabilityLabel(result, compact = false) {
+  const remaining = Math.max(0, Number(result.auto_issue_remaining) || 0);
+  if (result.auto_issue_available && remaining > 0) {
+    return compact
+      ? tr(`可自动签发 · 剩余 ${remaining} 个`, `${remaining} instant ${remaining === 1 ? "Key" : "Keys"} available`)
+      : tr(`自动签发剩余 ${remaining} 个 · 提交后立即获得 Key`, `${remaining} instant ${remaining === 1 ? "Key" : "Keys"} available · issued after submission`);
+  }
+  return compact
+    ? tr("自动名额已用完 · 可提交人工审核", "Instant capacity full · manual review available")
+    : tr("自动签发名额已用完 · 提交后进入人工审核", "Instant capacity is full · submit for manual review");
+}
+
+function renderAvailability(result) {
+  const available = Boolean(result.auto_issue_available && Number(result.auto_issue_remaining) > 0);
+  const dialogStatus = document.querySelector("#dialog-issuance-status");
+  if (dialogStatus) {
+    dialogStatus.textContent = availabilityLabel(result);
+    dialogStatus.dataset.available = String(available);
+  }
+  if (publicAvailability) {
+    const label = publicAvailability.querySelector("span");
+    if (label) label.textContent = availabilityLabel(result, true);
+    publicAvailability.dataset.available = String(available);
+  }
+}
+
+async function refreshIssuanceAvailability() {
   try {
     const response = await fetch("/api/v1/onboarding/status", { cache: "no-store" });
+    if (!response.ok) throw new Error(String(response.status));
     const result = await response.json();
-    status.textContent = result.auto_issue_available
-      ? tr("自动签发名额可用 · 提交后立即获得 Key", "Instant issue is available · submit to receive a Key")
-      : tr("自动名额暂不可用 · 提交后进入人工审核", "Instant issue is paused · submit for manual review");
-    status.dataset.available = result.auto_issue_available ? "true" : "false";
+    renderAvailability(result);
   } catch (_error) {
-    status.textContent = tr("暂时无法读取名额状态 · 仍可提交申请", "Capacity status unavailable · you can still apply");
-    delete status.dataset.available;
+    const unavailable = tr("暂时无法同步名额 · 仍可提交申请", "Capacity unavailable · you can still apply");
+    const dialogStatus = document.querySelector("#dialog-issuance-status");
+    if (dialogStatus) {
+      dialogStatus.textContent = unavailable;
+      delete dialogStatus.dataset.available;
+    }
+    if (publicAvailability) {
+      const label = publicAvailability.querySelector("span");
+      if (label) label.textContent = unavailable;
+      delete publicAvailability.dataset.available;
+    }
   }
 }
 
@@ -110,7 +143,7 @@ function openKeyDialog(event) {
   if (!keyDialog || typeof keyDialog.showModal !== "function") return;
   event.preventDefault();
   if (!keyDialog.open) keyDialog.showModal();
-  refreshDialogIssuanceStatus();
+  refreshIssuanceAvailability();
 }
 
 keyDialogOpeners.forEach((opener) => opener.addEventListener("click", openKeyDialog));
@@ -147,6 +180,7 @@ keyDialogForm?.addEventListener("submit", async (event) => {
       keyPendingView.hidden = false;
       keyPendingView.querySelector("h2")?.focus();
     }
+    refreshIssuanceAvailability();
     keyDialog.scrollTo({ top: 0, behavior: "smooth" });
   } catch (requestError) {
     keyDialogError.textContent = requestError.message;
@@ -173,3 +207,12 @@ document.querySelector("[data-copy-dialog-prompt]")?.addEventListener("click", (
   const value = document.querySelector("#dialog-setup-prompt")?.textContent || "";
   copyText(event.currentTarget, value, tr("Prompt 已复制", "Prompt copied"));
 });
+
+refreshIssuanceAvailability();
+availabilityRefreshTimer = window.setInterval(refreshIssuanceAvailability, 30000);
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) refreshIssuanceAvailability();
+});
+window.addEventListener("pagehide", () => {
+  if (availabilityRefreshTimer) window.clearInterval(availabilityRefreshTimer);
+}, { once: true });

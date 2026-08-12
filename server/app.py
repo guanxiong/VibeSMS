@@ -24,7 +24,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import parse_qs, urlparse
 
 
-VERSION = "0.9.2"
+VERSION = "0.10.0"
 PRODUCT_NAME = "VibeSMS"
 MAX_BODY_BYTES = 1024 * 1024
 STATIC_DIR = Path(__file__).with_name("static")
@@ -634,7 +634,10 @@ class GatewayStore:
         settings = dict(row) if row else {"auto_issue_enabled": 0, "auto_issue_quota": 0, "updated_at": ""}
         available = bool(settings["auto_issue_enabled"] and settings["auto_issue_quota"] > 0)
         if public:
-            return {"auto_issue_available": available}
+            return {
+                "auto_issue_available": available,
+                "auto_issue_remaining": int(settings["auto_issue_quota"]) if available else 0,
+            }
         return {
             "auto_issue_enabled": bool(settings["auto_issue_enabled"]),
             "auto_issue_quota": int(settings["auto_issue_quota"]),
