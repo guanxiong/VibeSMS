@@ -19,7 +19,7 @@
         <header class="legal-header">
           <p class="section-index">PUBLIC BETA / DATA NOTICE</p>
           <h1>数据与隐私说明</h1>
-          <p>生效日期：2026 年 8 月 12 日。VibeSMS 是一个仍在迭代中的 Public Beta；本页用清晰、可核验的语言说明当前服务处理什么数据，以及你在申请前应当知道什么。</p>
+          <p>生效日期：2026 年 8 月 13 日。VibeSMS 是一个仍在迭代中的 Public Beta；本页用清晰、可核验的语言说明当前服务处理什么数据，以及你在申请前应当知道什么。</p>
         </header>
 
         <section>
@@ -49,7 +49,7 @@
 
         <section>
           <h2>浏览器与第三方</h2>
-          <p>当前公开站点不加载广告、统计像素或第三方分析脚本。推广链接中的 <code>campaign</code> 仅在你提交测试 Key 申请时，作为后台预先创建的活动标签写入申请记录；服务不会存储完整 URL、IP、User-Agent 或浏览器指纹。Key 收件箱会将你主动输入或通过 URL 片段导入的 Key 临时放在当前浏览器标签页的 <code>sessionStorage</code>；关闭该标签页后会清除。该 Key 不会被放入页面 URL 查询参数发送给服务端。</p>
+          <p>当前公开站点不加载广告、统计像素或第三方分析脚本。为了执行“每个设备仅自动领取一次”，申请页面会在浏览器 <code>localStorage</code>中生成一个随机匿名领取标识；服务端只保存加域 SHA-256 摘要，不采集硬件参数、完整 URL、IP 或 User-Agent。清除浏览器站点数据会删除本地标识，因此它不是不可绕过的硬件指纹。推广链接中的 <code>campaign</code> 仅在提交申请时作为后台预设活动标签写入记录。Key 收件箱会将你主动输入或通过 URL 片段导入的 Key 临时放在当前标签页的 <code>sessionStorage</code>；关闭标签页后清除，Key 不会被放入发送给服务端的 URL 查询参数。</p>
         </section>
 
         <section>

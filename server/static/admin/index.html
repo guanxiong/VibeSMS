@@ -99,7 +99,7 @@
               <label class="toggle-field"><span>允许前台自动获得 Key</span><input id="auto-issue-enabled" name="auto_issue_enabled" type="checkbox"></label>
               <label>剩余自动名额<input id="auto-issue-quota" name="auto_issue_quota" type="number" min="0" max="10000" value="0" required></label>
               <button class="primary-action" type="submit">保存自动签发设置</button>
-              <p class="field-help">只在成功创建 Key 后扣减 1。关闭或归零时，新申请进入人工审核队列。</p>
+              <p class="field-help">每个匿名领取设备仅可自动签发一次，且只在成功创建 Key 后扣减 1。重复设备、关闭或归零时进入人工审核队列。</p>
             </form>
             <form id="activation-form" class="activation-form">
               <div class="control-heading"><span>MANUAL FALLBACK</span><strong>一次性激活码</strong></div>

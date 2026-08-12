@@ -1,5 +1,25 @@
 const statusNode = document.querySelector("#cloud-status");
 const tr = (zh, en) => window.VibeSMSI18n?.text(zh, en) ?? zh;
+const CLAIM_DEVICE_STORAGE_KEY = "vibesms.claim-device";
+
+function claimDeviceId() {
+  try {
+    const existing = localStorage.getItem(CLAIM_DEVICE_STORAGE_KEY) || "";
+    if (/^[A-Za-z0-9_-]{16,128}$/.test(existing)) return existing;
+    let generated = globalThis.crypto?.randomUUID?.().replaceAll("-", "") || "";
+    if (!generated && globalThis.crypto?.getRandomValues) {
+      const bytes = globalThis.crypto.getRandomValues(new Uint8Array(16));
+      generated = [...bytes].map(value => value.toString(16).padStart(2, "0")).join("");
+    }
+    if (!generated) return "";
+    localStorage.setItem(CLAIM_DEVICE_STORAGE_KEY, generated);
+    return generated;
+  } catch (_error) {
+    return "";
+  }
+}
+
+const currentClaimDeviceId = claimDeviceId();
 
 function attributionFor(landing) {
   const parameters = new URLSearchParams(window.location.search);
@@ -94,6 +114,16 @@ let availabilityRefreshTimer = null;
 
 function availabilityLabel(result, compact = false) {
   const remaining = Math.max(0, Number(result.auto_issue_remaining) || 0);
+  if (result.device_already_claimed) {
+    return compact
+      ? tr("本设备已领取 · 可提交人工审核", "Already claimed on this device · manual review available")
+      : tr("本设备已领取过自动 Key · 再次提交将进入人工审核", "This device already claimed an instant Key · another request enters manual review");
+  }
+  if (result.device_auto_issue_eligible === false) {
+    return compact
+      ? tr("无法保存设备标识 · 可提交人工审核", "Device ID unavailable · manual review available")
+      : tr("浏览器无法保存匿名设备标识 · 提交后进入人工审核", "The browser cannot save an anonymous device ID · submit for manual review");
+  }
   if (result.auto_issue_available && remaining > 0) {
     return compact
       ? tr(`可自动签发 · 剩余 ${remaining} 个`, `${remaining} instant ${remaining === 1 ? "Key" : "Keys"} available`)
@@ -120,7 +150,8 @@ function renderAvailability(result) {
 
 async function refreshIssuanceAvailability() {
   try {
-    const response = await fetch("/api/v1/onboarding/status", { cache: "no-store" });
+    const headers = currentClaimDeviceId ? { "X-VibeSMS-Claim-Device": currentClaimDeviceId } : {};
+    const response = await fetch("/api/v1/onboarding/status", { cache: "no-store", headers });
     if (!response.ok) throw new Error(String(response.status));
     const result = await response.json();
     renderAvailability(result);
@@ -161,7 +192,11 @@ keyDialogForm?.addEventListener("submit", async (event) => {
   keyDialogSubmit.textContent = tr("正在提交…", "Submitting…");
   try {
     const fields = new FormData(keyDialogForm);
-    const payload = { ...Object.fromEntries(fields), ...attributionFor("home") };
+    const payload = {
+      ...Object.fromEntries(fields),
+      ...attributionFor("home"),
+      claim_device_id: currentClaimDeviceId
+    };
     const response = await fetch("/api/v1/key-requests", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -177,6 +212,12 @@ keyDialogForm?.addEventListener("submit", async (event) => {
       keyIssuedView.querySelector("h2")?.focus?.();
     } else {
       document.querySelector("#dialog-request-id").textContent = result.request_id || "—";
+      const pendingExplanation = document.querySelector("#dialog-pending-explanation");
+      if (pendingExplanation) {
+        pendingExplanation.textContent = result.auto_issue_blocked_reason === "device_limit"
+          ? tr("本设备已领取过自动签发额度，本次申请已转入人工审核。", "This device has already used its instant-issue allowance, so this request was sent to manual review.")
+          : tr("当前自动名额不可用，审核后会通过你填写的联系方式发送一次性激活码。", "Instant issue is currently unavailable. After review, a one-time activation code will be sent using your contact details.");
+      }
       keyPendingView.hidden = false;
       keyPendingView.querySelector("h2")?.focus();
     }

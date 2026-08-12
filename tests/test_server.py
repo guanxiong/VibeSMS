@@ -47,10 +47,14 @@ class GatewayServerTest(unittest.TestCase):
                     row[1] for row in connection.execute("PRAGMA index_list(key_requests)")
                 }
             self.assertTrue(
-                {"attribution_source", "attribution_campaign", "attribution_landing"}
+                {
+                    "attribution_source", "attribution_campaign", "attribution_landing",
+                    "claim_device_hash", "review_reason",
+                }
                 <= columns
             )
             self.assertIn("idx_key_requests_attribution", indexes)
+            self.assertIn("idx_key_requests_auto_issue_device", indexes)
 
     def setUp(self):
         self.tempdir = tempfile.TemporaryDirectory()
@@ -77,7 +81,8 @@ class GatewayServerTest(unittest.TestCase):
         self.tempdir.cleanup()
 
     def request(
-        self, path, method="GET", payload=None, token=None, user_token=None, admin=False
+        self, path, method="GET", payload=None, token=None, user_token=None, admin=False,
+        claim_device_id=None,
     ):
         data = None if payload is None else json.dumps(payload).encode("utf-8")
         headers = {"Content-Type": "application/json"}
@@ -88,6 +93,8 @@ class GatewayServerTest(unittest.TestCase):
         if admin:
             credentials = base64.b64encode(b"admin:admin-password").decode("ascii")
             headers["Authorization"] = "Basic " + credentials
+        if claim_device_id:
+            headers["X-VibeSMS-Claim-Device"] = claim_device_id
         request = Request(self.base_url + path, data=data, headers=headers, method=method)
         with urlopen(request, timeout=3) as response:
             return response.status, json.loads(response.read().decode("utf-8"))
@@ -146,6 +153,7 @@ class GatewayServerTest(unittest.TestCase):
         with urlopen(self.base_url + "/site/app.js", timeout=3) as response:
             site_script = response.read().decode("utf-8")
         self.assertIn("auto_issue_remaining", site_script)
+        self.assertIn("vibesms.claim-device", site_script)
         self.assertIn("setInterval(refreshIssuanceAvailability, 30000)", site_script)
 
         with urlopen(self.base_url + "/site/og-vibesms.jpg", timeout=3) as response:
@@ -310,6 +318,7 @@ class GatewayServerTest(unittest.TestCase):
                 "phone_number": "+8613900012345",
                 "use_case": "My own Agent registration flow.",
                 "device_count": "1",
+                "claim_device_id": "device-claim-00000000000001",
             },
         )
         self.assertEqual(status, 201)
@@ -352,6 +361,7 @@ class GatewayServerTest(unittest.TestCase):
                 "phone_number": "+8613900012346",
                 "use_case": "One more self-service key.",
                 "device_count": "1",
+                "claim_device_id": "device-claim-00000000000002",
             },
         )
         self.assertEqual(second["status"], "auto_issued")
@@ -370,6 +380,65 @@ class GatewayServerTest(unittest.TestCase):
         )
         self.assertEqual(queued["status"], "pending")
         self.assertEqual(queued["key"], "")
+
+    def test_each_claim_device_can_auto_issue_only_once(self):
+        self.request(
+            "/api/v1/admin/onboarding-settings",
+            "POST",
+            {"auto_issue_enabled": True, "auto_issue_quota": 3},
+            admin=True,
+        )
+        claim_device_id = "device-claim-one-per-device-01"
+        _, first = self.request(
+            "/api/v1/key-requests",
+            "POST",
+            {
+                "email": "first-device@example.com",
+                "phone_number": "+8613900012381",
+                "use_case": "First request from this browser device.",
+                "device_count": "1",
+                "claim_device_id": claim_device_id,
+            },
+        )
+        self.assertEqual(first["status"], "auto_issued")
+        self.assertEqual(first["auto_issue_blocked_reason"], "")
+
+        _, device_status = self.request(
+            "/api/v1/onboarding/status", claim_device_id=claim_device_id
+        )
+        self.assertTrue(device_status["device_already_claimed"])
+        self.assertFalse(device_status["device_auto_issue_eligible"])
+        self.assertEqual(device_status["auto_issue_remaining"], 2)
+
+        _, second = self.request(
+            "/api/v1/key-requests",
+            "POST",
+            {
+                "email": "second-device@example.com",
+                "phone_number": "+8613900012382",
+                "use_case": "A repeat request from the same browser device.",
+                "device_count": "1",
+                "claim_device_id": claim_device_id,
+            },
+        )
+        self.assertEqual(second["status"], "pending")
+        self.assertEqual(second["key"], "")
+        self.assertEqual(second["auto_issue_blocked_reason"], "device_limit")
+
+        _, missing = self.request(
+            "/api/v1/key-requests",
+            "POST",
+            {
+                "email": "missing-device@example.com",
+                "phone_number": "+8613900012383",
+                "use_case": "A request without a persistent device identifier.",
+                "device_count": "1",
+            },
+        )
+        self.assertEqual(missing["status"], "pending")
+        self.assertEqual(missing["auto_issue_blocked_reason"], "missing_device_id")
+        _, settings = self.request("/api/v1/admin/onboarding-settings", admin=True)
+        self.assertEqual(settings["auto_issue_quota"], 2)
 
     def test_admin_can_disable_unused_activation_code(self):
         _, activation = self.request(
@@ -465,6 +534,7 @@ class GatewayServerTest(unittest.TestCase):
                 "device_count": "1",
                 "attribution_campaign": "public-beta-202608",
                 "attribution_landing": "apply",
+                "claim_device_id": "device-claim-funnel-00000001",
             },
         )
         self.assertEqual(issued["status"], "auto_issued")

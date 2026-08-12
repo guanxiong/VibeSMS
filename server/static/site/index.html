@@ -278,7 +278,7 @@ gh skill install guanxiong/VibeSMS
         </header>
 
         <div id="key-request-view">
-          <p class="dialog-intro">无需注册账户。自动名额可用时，提交后会立即显示一次真实 Key；额度用尽后转入人工审核。</p>
+          <p class="dialog-intro">无需注册账户。每个设备只可自动领取一次；有名额时立即显示真实 Key，重复领取或额度用尽后转入人工审核。</p>
           <p id="dialog-issuance-status" class="dialog-issuance-status" aria-live="polite">正在检查自动签发名额…</p>
           <form id="dialog-request-form" class="dialog-form">
             <label for="dialog-email">邮箱 <em>必填</em><input id="dialog-email" name="email" type="email" autocomplete="email" maxlength="254" placeholder="you@example.com" required></label>
@@ -319,7 +319,7 @@ gh skill install guanxiong/VibeSMS
         <div id="key-pending-view" class="dialog-result" hidden>
           <p class="result-state">REQUEST RECEIVED</p>
           <h2 tabindex="-1">申请已进入审核队列。</h2>
-          <p>申请编号 <code id="dialog-request-id"></code>。当前自动名额不可用，审核后会通过你填写的联系方式发送一次性激活码。</p>
+          <p>申请编号 <code id="dialog-request-id"></code>。<span id="dialog-pending-explanation">当前自动名额不可用，审核后会通过你填写的联系方式发送一次性激活码。</span></p>
           <div class="dialog-result-actions"><a class="button primary" href="/activate/">兑换激活码 →</a><button class="button secondary" type="button" data-close-key-dialog>关闭</button></div>
         </div>
       </div>

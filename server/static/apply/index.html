@@ -19,10 +19,10 @@
       <section class="intro">
         <p class="eyebrow">ACCESS / TEST KEY</p>
         <h1><span>申请一个</span><span>测试 Key，</span><span>把自己的号码</span><span>交给 Agent。</span></h1>
-        <p>无需新建账户。自动名额可用时，提交后立即生成真实 Key；额度暂停或用尽时，申请会进入人工审核队列。</p>
+        <p>无需新建账户。每个设备只可自动领取一次；有名额时立即生成真实 Key，重复领取或额度暂停时进入人工审核。</p>
         <dl>
           <div><dt>你需要提交</dt><dd>邮箱、自己的手机号和简要用途</dd></div>
-          <div><dt>自动名额可用</dt><dd>立即获得只显示一次的真实 Key</dd></div>
+          <div><dt>首次设备领取</dt><dd>有名额时获得只显示一次的真实 Key</dd></div>
           <div><dt>下一步</dt><dd>在自己的 Android 终端首次绑定 SIM</dd></div>
         </dl>
       </section>
@@ -57,7 +57,7 @@
           <p class="eyebrow">REQUEST RECEIVED</p>
           <h2>申请已进入审核队列。</h2>
           <p>申请编号 <code id="request-id"></code></p>
-          <p>当前自动名额不可用。审核通过后，我们会通过邮箱或你留下的联系方式发送一次性激活码。</p>
+          <p id="request-pending-explanation">当前自动名额不可用。审核通过后，我们会通过邮箱或你留下的联系方式发送一次性激活码。</p>
           <a class="quiet-link" href="/activate/">我已经有激活码 →</a>
         </div>
       </section>

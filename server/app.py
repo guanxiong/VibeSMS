@@ -24,7 +24,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import parse_qs, urlparse
 
 
-VERSION = "0.10.0"
+VERSION = "0.11.0"
 PRODUCT_NAME = "VibeSMS"
 MAX_BODY_BYTES = 1024 * 1024
 STATIC_DIR = Path(__file__).with_name("static")
@@ -33,6 +33,7 @@ USER_KEY_PREFIX = "vbs_live_"
 ACTIVATION_CODE_PREFIX = "vba_"
 REQUEST_EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 ATTRIBUTION_VALUE_PATTERN = re.compile(r"[a-z0-9][a-z0-9._-]{0,63}")
+CLAIM_DEVICE_PATTERN = re.compile(r"[A-Za-z0-9_-]{16,128}")
 CAMPAIGN_SOURCES = {"v2ex", "x", "github", "skills-sh", "hacker-news", "reddit", "wechat", "other"}
 CAMPAIGN_LANDINGS = {"home", "apply"}
 
@@ -72,6 +73,15 @@ def device_id_from_payload(payload: Dict[str, Any]) -> str:
 
 def token_digest(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def claim_device_digest(value: Any) -> str:
+    claim_device_id = clean_text(value, 128)
+    if not claim_device_id:
+        return ""
+    if not CLAIM_DEVICE_PATTERN.fullmatch(claim_device_id):
+        raise ValueError("claim_device_id is invalid")
+    return token_digest("vibesms-claim-device:" + claim_device_id)
 
 
 def normalize_phone_number(value: Any) -> str:
@@ -286,6 +296,8 @@ class GatewayStore:
             attribution_source TEXT NOT NULL DEFAULT 'direct',
             attribution_campaign TEXT NOT NULL DEFAULT 'none',
             attribution_landing TEXT NOT NULL DEFAULT 'apply',
+            claim_device_hash TEXT NOT NULL DEFAULT '',
+            review_reason TEXT NOT NULL DEFAULT '',
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL
         );
@@ -340,9 +352,16 @@ class GatewayStore:
             self._ensure_column(connection, "key_requests", "attribution_source", "TEXT NOT NULL DEFAULT 'direct'")
             self._ensure_column(connection, "key_requests", "attribution_campaign", "TEXT NOT NULL DEFAULT 'none'")
             self._ensure_column(connection, "key_requests", "attribution_landing", "TEXT NOT NULL DEFAULT 'apply'")
+            self._ensure_column(connection, "key_requests", "claim_device_hash", "TEXT NOT NULL DEFAULT ''")
+            self._ensure_column(connection, "key_requests", "review_reason", "TEXT NOT NULL DEFAULT ''")
             connection.execute(
                 """CREATE INDEX IF NOT EXISTS idx_key_requests_attribution
                    ON key_requests(attribution_source, attribution_campaign, created_at DESC)"""
+            )
+            connection.execute(
+                """CREATE UNIQUE INDEX IF NOT EXISTS idx_key_requests_auto_issue_device
+                   ON key_requests(claim_device_hash)
+                   WHERE status = 'auto_issued' AND claim_device_hash != ''"""
             )
             connection.execute("UPDATE devices SET first_seen = last_seen WHERE first_seen = ''")
             connection.execute(
@@ -525,6 +544,7 @@ class GatewayStore:
         phone_number: str = "",
         attribution_campaign: str = "",
         attribution_landing: str = "apply",
+        claim_device_id: str = "",
     ) -> Dict[str, Any]:
         email = clean_text(email, 254).lower()
         use_case = clean_text(use_case, 600)
@@ -537,6 +557,7 @@ class GatewayStore:
         if device_count not in {"1", "2-5", "6+"}:
             raise ValueError("device_count must be 1, 2-5, or 6+")
         phone_number = normalize_phone_number(phone_number)
+        claim_device_hash = claim_device_digest(claim_device_id)
         attribution_source, attribution_campaign, attribution_landing = self.resolve_campaign(
             attribution_campaign, attribution_landing
         )
@@ -565,9 +586,26 @@ class GatewayStore:
                 """SELECT auto_issue_enabled, auto_issue_quota
                    FROM onboarding_settings WHERE settings_id = 1"""
             ).fetchone()
+            device_already_claimed = bool(
+                claim_device_hash
+                and connection.execute(
+                    """SELECT 1 FROM key_requests
+                       WHERE claim_device_hash = ? AND status = 'auto_issued' LIMIT 1""",
+                    (claim_device_hash,),
+                ).fetchone()
+            )
             auto_issue = bool(
                 settings and settings["auto_issue_enabled"] == 1 and settings["auto_issue_quota"] > 0
+                and claim_device_hash and not device_already_claimed
             )
+            if device_already_claimed:
+                review_reason = "device_limit"
+            elif not claim_device_hash:
+                review_reason = "missing_device_id"
+            elif not settings or settings["auto_issue_enabled"] != 1 or settings["auto_issue_quota"] <= 0:
+                review_reason = "quota_unavailable"
+            else:
+                review_reason = ""
             key_id = self._new_key_id() if auto_issue else ""
             token = self._new_user_token() if auto_issue else ""
             status = "auto_issued" if auto_issue else "pending"
@@ -575,8 +613,8 @@ class GatewayStore:
                 """INSERT INTO key_requests (
                     request_id, email, phone_number, contact, use_case, device_count, status,
                     activation_id, key_id, attribution_source, attribution_campaign,
-                    attribution_landing, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?)""",
+                    attribution_landing, claim_device_hash, review_reason, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     request_id,
                     email,
@@ -589,6 +627,8 @@ class GatewayStore:
                     attribution_source,
                     attribution_campaign,
                     attribution_landing,
+                    claim_device_hash,
+                    review_reason,
                     now,
                     now,
                 ),
@@ -623,20 +663,34 @@ class GatewayStore:
             "key_id": key_id,
             "key": token,
             "key_shown_once": bool(token),
+            "auto_issue_blocked_reason": review_reason,
         }
 
-    def get_onboarding_settings(self, public: bool = False) -> Dict[str, Any]:
+    def get_onboarding_settings(
+        self, public: bool = False, claim_device_id: Any = ""
+    ) -> Dict[str, Any]:
+        claim_device_hash = claim_device_digest(claim_device_id)
         with self._lock, self._connect() as connection:
             row = connection.execute(
                 """SELECT auto_issue_enabled, auto_issue_quota, updated_at
                    FROM onboarding_settings WHERE settings_id = 1"""
             ).fetchone()
+            device_already_claimed = bool(
+                claim_device_hash
+                and connection.execute(
+                    """SELECT 1 FROM key_requests
+                       WHERE claim_device_hash = ? AND status = 'auto_issued' LIMIT 1""",
+                    (claim_device_hash,),
+                ).fetchone()
+            )
         settings = dict(row) if row else {"auto_issue_enabled": 0, "auto_issue_quota": 0, "updated_at": ""}
         available = bool(settings["auto_issue_enabled"] and settings["auto_issue_quota"] > 0)
         if public:
             return {
                 "auto_issue_available": available,
                 "auto_issue_remaining": int(settings["auto_issue_quota"]) if available else 0,
+                "device_auto_issue_eligible": bool(claim_device_hash and not device_already_claimed),
+                "device_already_claimed": device_already_claimed,
             }
         return {
             "auto_issue_enabled": bool(settings["auto_issue_enabled"]),
@@ -668,7 +722,7 @@ class GatewayStore:
             rows = connection.execute(
                 """SELECT request_id, email, phone_number, contact, use_case, device_count, status,
                           activation_id, key_id, attribution_source, attribution_campaign,
-                          attribution_landing, created_at, updated_at
+                          attribution_landing, review_reason, created_at, updated_at
                    FROM key_requests ORDER BY created_at DESC"""
             ).fetchall()
         return [dict(row) for row in rows]
@@ -1354,6 +1408,7 @@ class GatewayRequestHandler(BaseHTTPRequestHandler):
                     payload.get("phone_number"),
                     payload.get("attribution_campaign"),
                     payload.get("attribution_landing"),
+                    payload.get("claim_device_id"),
                 )
             except ConflictError as exc:
                 self._json(HTTPStatus.CONFLICT, {"ok": False, "error": str(exc)})
@@ -1609,9 +1664,15 @@ class GatewayRequestHandler(BaseHTTPRequestHandler):
             )
             return
         if path == "/api/v1/onboarding/status":
+            claim_device_id = self.headers.get("X-VibeSMS-Claim-Device", "")
             self._json(
                 HTTPStatus.OK,
-                {"ok": True, **self.gateway_server.store.get_onboarding_settings(public=True)},
+                {
+                    "ok": True,
+                    **self.gateway_server.store.get_onboarding_settings(
+                        public=True, claim_device_id=claim_device_id
+                    ),
+                },
             )
             return
 
