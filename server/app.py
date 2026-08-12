@@ -21,10 +21,12 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qs, urlparse
+from urllib.request import Request, urlopen
 
 
-VERSION = "0.11.0"
+VERSION = "0.12.0"
 PRODUCT_NAME = "VibeSMS"
 MAX_BODY_BYTES = 1024 * 1024
 STATIC_DIR = Path(__file__).with_name("static")
@@ -36,6 +38,7 @@ ATTRIBUTION_VALUE_PATTERN = re.compile(r"[a-z0-9][a-z0-9._-]{0,63}")
 CLAIM_DEVICE_PATTERN = re.compile(r"[A-Za-z0-9_-]{16,128}")
 CAMPAIGN_SOURCES = {"v2ex", "x", "github", "skills-sh", "hacker-news", "reddit", "wechat", "other"}
 CAMPAIGN_LANDINGS = {"home", "apply"}
+FEISHU_WEBHOOK_HOSTS = {"open.feishu.cn", "open.larksuite.com"}
 
 
 class ConflictError(ValueError):
@@ -44,6 +47,10 @@ class ConflictError(ValueError):
 
 class ActivationError(ValueError):
     """An activation code is invalid, expired, or has already been used."""
+
+
+class WebhookDeliveryError(ValueError):
+    """A configured webhook rejected or returned an invalid response."""
 
 
 def utc_now() -> str:
@@ -98,6 +105,39 @@ def normalize_attribution(value: Any, allowed: set[str], fallback: str) -> str:
     if not ATTRIBUTION_VALUE_PATTERN.fullmatch(normalized) or normalized not in allowed:
         return fallback
     return normalized
+
+
+def normalize_webhook_keywords(value: Any) -> List[str]:
+    if isinstance(value, str):
+        values = re.split(r"[,，\n]", value)
+    elif isinstance(value, list):
+        values = value
+    else:
+        values = []
+    keywords: List[str] = []
+    for item in values:
+        keyword = clean_text(item, 40)
+        if keyword and keyword.casefold() not in {current.casefold() for current in keywords}:
+            keywords.append(keyword)
+    if not keywords:
+        raise ValueError("at least one keyword is required")
+    if len(keywords) > 10:
+        raise ValueError("no more than 10 keywords are allowed")
+    return keywords
+
+
+def validate_feishu_webhook_url(value: Any) -> str:
+    webhook_url = clean_text(value, 1024)
+    parsed = urlparse(webhook_url)
+    if (
+        parsed.scheme != "https"
+        or parsed.hostname not in FEISHU_WEBHOOK_HOSTS
+        or not re.fullmatch(r"/open-apis/bot/v2/hook/[A-Za-z0-9_-]{16,256}", parsed.path)
+        or parsed.query
+        or parsed.fragment
+    ):
+        raise ValueError("please provide a valid Feishu or Lark custom bot webhook URL")
+    return webhook_url
 
 
 def extract_otp(content: str) -> str:
@@ -342,6 +382,36 @@ class GatewayStore:
             auto_issue_quota INTEGER NOT NULL DEFAULT 0,
             updated_at TEXT NOT NULL
         );
+        CREATE TABLE IF NOT EXISTS webhook_configs (
+            webhook_id TEXT PRIMARY KEY,
+            key_id TEXT NOT NULL UNIQUE,
+            provider TEXT NOT NULL DEFAULT 'feishu',
+            webhook_url TEXT NOT NULL,
+            keywords_json TEXT NOT NULL,
+            enabled INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            last_tested_at TEXT NOT NULL DEFAULT '',
+            FOREIGN KEY(key_id) REFERENCES user_keys(key_id),
+            CHECK (provider = 'feishu')
+        );
+        CREATE TABLE IF NOT EXISTS webhook_deliveries (
+            delivery_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            webhook_id TEXT NOT NULL,
+            event_id TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending',
+            attempts INTEGER NOT NULL DEFAULT 0,
+            response_code INTEGER,
+            last_error TEXT NOT NULL DEFAULT '',
+            next_attempt_at TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            sent_at TEXT NOT NULL DEFAULT '',
+            UNIQUE(webhook_id, event_id),
+            FOREIGN KEY(webhook_id) REFERENCES webhook_configs(webhook_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_due
+            ON webhook_deliveries(status, next_attempt_at, delivery_id);
         """
         with self._lock, self._connect() as connection:
             connection.executescript(schema)
@@ -364,6 +434,13 @@ class GatewayStore:
                    WHERE status = 'auto_issued' AND claim_device_hash != ''"""
             )
             connection.execute("UPDATE devices SET first_seen = last_seen WHERE first_seen = ''")
+            connection.execute(
+                """UPDATE webhook_deliveries
+                   SET status = 'failed', last_error = 'delivery interrupted by restart',
+                       next_attempt_at = ?, updated_at = ?
+                   WHERE status = 'sending'""",
+                (utc_now(), utc_now()),
+            )
             connection.execute(
                 """INSERT OR IGNORE INTO onboarding_settings (
                     settings_id, auto_issue_enabled, auto_issue_quota, updated_at
@@ -1025,6 +1102,246 @@ class GatewayStore:
             "already_bound": already_bound,
         }
 
+    @staticmethod
+    def _webhook_hint(webhook_url: str) -> str:
+        token = urlparse(webhook_url).path.rsplit("/", 1)[-1]
+        return "••••" + token[-6:] if token else "configured"
+
+    def get_feishu_webhook(self, key_id: str) -> Dict[str, Any]:
+        with self._lock, self._connect() as connection:
+            row = connection.execute(
+                """SELECT webhook_id, webhook_url, keywords_json, enabled, created_at,
+                          updated_at, last_tested_at
+                   FROM webhook_configs WHERE key_id = ? AND provider = 'feishu'""",
+                (clean_text(key_id, 64),),
+            ).fetchone()
+            deliveries = connection.execute(
+                """SELECT d.delivery_id, d.status, d.attempts, d.response_code,
+                          d.last_error, d.created_at, d.updated_at, d.sent_at,
+                          e.sender, e.received_at
+                   FROM webhook_deliveries d
+                   JOIN webhook_configs w ON w.webhook_id = d.webhook_id
+                   JOIN events e ON e.event_id = d.event_id
+                   WHERE w.key_id = ? AND w.provider = 'feishu'
+                   ORDER BY d.delivery_id DESC LIMIT 20""",
+                (clean_text(key_id, 64),),
+            ).fetchall()
+        if not row:
+            return {"configured": False, "deliveries": []}
+        return {
+            "configured": True,
+            "webhook_id": row["webhook_id"],
+            "webhook_hint": self._webhook_hint(row["webhook_url"]),
+            "keywords": json.loads(row["keywords_json"]),
+            "enabled": bool(row["enabled"]),
+            "created_at": row["created_at"],
+            "updated_at": row["updated_at"],
+            "last_tested_at": row["last_tested_at"],
+            "deliveries": [dict(delivery) for delivery in deliveries],
+        }
+
+    def upsert_feishu_webhook(
+        self, key_id: str, webhook_url: Any, keywords: Any, enabled: Any
+    ) -> Dict[str, Any]:
+        if not isinstance(enabled, bool):
+            raise ValueError("enabled must be true or false")
+        normalized_keywords = normalize_webhook_keywords(keywords)
+        key_id = clean_text(key_id, 64)
+        now = utc_now()
+        with self._lock, self._connect() as connection:
+            existing = connection.execute(
+                "SELECT webhook_id, webhook_url FROM webhook_configs WHERE key_id = ?",
+                (key_id,),
+            ).fetchone()
+            normalized_url = validate_feishu_webhook_url(webhook_url) if clean_text(webhook_url) else ""
+            if not normalized_url:
+                if not existing:
+                    raise ValueError("webhook_url is required for the first configuration")
+                normalized_url = existing["webhook_url"]
+            webhook_id = existing["webhook_id"] if existing else "wh_" + secrets.token_hex(8)
+            connection.execute(
+                """INSERT INTO webhook_configs (
+                       webhook_id, key_id, provider, webhook_url, keywords_json,
+                       enabled, created_at, updated_at
+                   ) VALUES (?, ?, 'feishu', ?, ?, ?, ?, ?)
+                   ON CONFLICT(key_id) DO UPDATE SET
+                       webhook_url = excluded.webhook_url,
+                       keywords_json = excluded.keywords_json,
+                       enabled = excluded.enabled,
+                       updated_at = excluded.updated_at""",
+                (
+                    webhook_id,
+                    key_id,
+                    normalized_url,
+                    json.dumps(normalized_keywords, ensure_ascii=False),
+                    1 if enabled else 0,
+                    now,
+                    now,
+                ),
+            )
+        return self.get_feishu_webhook(key_id)
+
+    def delete_feishu_webhook(self, key_id: str) -> None:
+        with self._lock, self._connect() as connection:
+            row = connection.execute(
+                "SELECT webhook_id FROM webhook_configs WHERE key_id = ? AND provider = 'feishu'",
+                (clean_text(key_id, 64),),
+            ).fetchone()
+            if not row:
+                raise ValueError("Feishu webhook is not configured")
+            connection.execute(
+                "DELETE FROM webhook_deliveries WHERE webhook_id = ?", (row["webhook_id"],)
+            )
+            connection.execute(
+                "DELETE FROM webhook_configs WHERE webhook_id = ?", (row["webhook_id"],)
+            )
+
+    @staticmethod
+    def _send_feishu_payload(webhook_url: str, text: str, timeout: float = 5.0) -> int:
+        payload = json.dumps(
+            {"msg_type": "text", "content": {"text": text}}, ensure_ascii=False
+        ).encode("utf-8")
+        request = Request(
+            webhook_url,
+            data=payload,
+            headers={"Content-Type": "application/json; charset=utf-8"},
+            method="POST",
+        )
+        with urlopen(request, timeout=timeout) as response:
+            response_code = int(response.status)
+            response_body = response.read(4096).decode("utf-8", errors="replace")
+        if response_code < 200 or response_code >= 300:
+            raise WebhookDeliveryError("Feishu returned HTTP %d" % response_code)
+        try:
+            result = json.loads(response_body) if response_body else {}
+        except json.JSONDecodeError as exc:
+            raise WebhookDeliveryError("Feishu returned invalid JSON") from exc
+        business_code = result.get("code", result.get("StatusCode", 0))
+        if business_code not in (0, "0", None):
+            message = clean_text(result.get("msg", result.get("StatusMessage", "delivery rejected")), 200)
+            raise WebhookDeliveryError("Feishu rejected the message: " + message)
+        return response_code
+
+    def test_feishu_webhook(self, key_id: str) -> Dict[str, Any]:
+        key_id = clean_text(key_id, 64)
+        with self._lock, self._connect() as connection:
+            row = connection.execute(
+                """SELECT webhook_id, webhook_url FROM webhook_configs
+                   WHERE key_id = ? AND provider = 'feishu'""",
+                (key_id,),
+            ).fetchone()
+        if not row:
+            raise ValueError("Feishu webhook is not configured")
+        response_code = self._send_feishu_payload(
+            row["webhook_url"],
+            "VibeSMS 飞书转发测试成功。\n这是一条配置验证消息，不包含真实短信内容。",
+        )
+        now = utc_now()
+        with self._lock, self._connect() as connection:
+            connection.execute(
+                "UPDATE webhook_configs SET last_tested_at = ?, updated_at = ? WHERE webhook_id = ?",
+                (now, now, row["webhook_id"]),
+            )
+        return {"delivered": True, "response_code": response_code, "tested_at": now}
+
+    def _queue_feishu_delivery(
+        self, connection: sqlite3.Connection, event: Dict[str, Any], key_id: str, now: str
+    ) -> None:
+        if event["event_type"] != "sms":
+            return
+        config = connection.execute(
+            """SELECT webhook_id, keywords_json FROM webhook_configs
+               WHERE key_id = ? AND provider = 'feishu' AND enabled = 1""",
+            (key_id,),
+        ).fetchone()
+        if not config:
+            return
+        keywords = json.loads(config["keywords_json"])
+        content = event["content"].casefold()
+        if not any(str(keyword).casefold() in content for keyword in keywords):
+            return
+        connection.execute(
+            """INSERT OR IGNORE INTO webhook_deliveries (
+                   webhook_id, event_id, status, attempts, next_attempt_at,
+                   created_at, updated_at
+               ) VALUES (?, ?, 'pending', 0, ?, ?, ?)""",
+            (config["webhook_id"], event["event_id"], now, now, now),
+        )
+
+    def deliver_due_webhooks(self, limit: int = 20) -> Dict[str, int]:
+        sent = 0
+        failed = 0
+        now = utc_now()
+        with self._lock, self._connect() as connection:
+            due = connection.execute(
+                """SELECT d.delivery_id, d.attempts, w.webhook_url,
+                          e.sender, e.content, e.received_at, e.sim_slot,
+                          k.phone_number
+                   FROM webhook_deliveries d
+                   JOIN webhook_configs w ON w.webhook_id = d.webhook_id
+                   JOIN events e ON e.event_id = d.event_id
+                   JOIN user_keys k ON k.key_id = w.key_id
+                   WHERE w.enabled = 1
+                     AND k.enabled = 1
+                     AND d.status IN ('pending', 'failed')
+                     AND d.attempts < 5
+                     AND d.next_attempt_at <= ?
+                   ORDER BY d.delivery_id ASC LIMIT ?""",
+                (now, max(1, min(int(limit), 100))),
+            ).fetchall()
+        for delivery in due:
+            attempt = int(delivery["attempts"]) + 1
+            with self._lock, self._connect() as connection:
+                claimed = connection.execute(
+                    """UPDATE webhook_deliveries
+                       SET status = 'sending', attempts = ?, updated_at = ?
+                       WHERE delivery_id = ? AND status IN ('pending', 'failed')""",
+                    (attempt, utc_now(), delivery["delivery_id"]),
+                )
+                if claimed.rowcount != 1:
+                    continue
+            message = (
+                "【VibeSMS 短信】\n"
+                f"号码：{delivery['phone_number']}\n"
+                f"SIM：{delivery['sim_slot']}\n"
+                f"发送方：{delivery['sender'] or '未知'}\n"
+                f"时间：{delivery['received_at']}\n"
+                f"内容：{delivery['content']}"
+            )
+            try:
+                response_code = self._send_feishu_payload(delivery["webhook_url"], message)
+            except (HTTPError, URLError, OSError, ValueError) as exc:
+                failed += 1
+                retry_at = (
+                    datetime.now(timezone.utc) + timedelta(seconds=min(300, 5 * (2 ** (attempt - 1))))
+                ).isoformat(timespec="seconds")
+                with self._lock, self._connect() as connection:
+                    connection.execute(
+                        """UPDATE webhook_deliveries
+                           SET status = 'failed', response_code = ?, last_error = ?,
+                               next_attempt_at = ?, updated_at = ?
+                           WHERE delivery_id = ?""",
+                        (
+                            getattr(exc, "code", None),
+                            clean_text(str(exc), 300),
+                            retry_at,
+                            utc_now(),
+                            delivery["delivery_id"],
+                        ),
+                    )
+                continue
+            sent += 1
+            delivered_at = utc_now()
+            with self._lock, self._connect() as connection:
+                connection.execute(
+                    """UPDATE webhook_deliveries
+                       SET status = 'sent', response_code = ?, last_error = '',
+                           sent_at = ?, updated_at = ?
+                       WHERE delivery_id = ?""",
+                    (response_code, delivered_at, delivered_at, delivery["delivery_id"]),
+                )
+        return {"sent": sent, "failed": failed}
+
     def insert_event(self, event: Dict[str, Any]) -> Tuple[bool, str]:
         created_at = utc_now()
         fields = (
@@ -1075,6 +1392,7 @@ class GatewayStore:
                            WHERE key_id = ? AND bound_at != '' AND first_event_at = ''""",
                         (created_at, key_row["key_id"]),
                     )
+                    self._queue_feishu_delivery(connection, event, key_row["key_id"], created_at)
         return inserted, event["event_id"]
 
     def record_heartbeat(self, payload: Dict[str, Any]) -> str:
@@ -1393,6 +1711,43 @@ class GatewayRequestHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         path = urlparse(self.path).path.rstrip("/")
+        if path in {
+            "/api/v1/webhooks/feishu",
+            "/api/v1/webhooks/feishu/test",
+            "/api/v1/webhooks/feishu/delete",
+        }:
+            key = self._user_key_authorized()
+            if not key:
+                self._user_key_unauthorized()
+                return
+            try:
+                if path == "/api/v1/webhooks/feishu":
+                    payload = self._read_json()
+                    result = self.gateway_server.store.upsert_feishu_webhook(
+                        key["key_id"],
+                        payload.get("webhook_url"),
+                        payload.get("keywords"),
+                        payload.get("enabled"),
+                    )
+                    self._json(HTTPStatus.OK, {"ok": True, **result})
+                    return
+                if path == "/api/v1/webhooks/feishu/test":
+                    result = self.gateway_server.store.test_feishu_webhook(key["key_id"])
+                    self._json(HTTPStatus.OK, {"ok": True, **result})
+                    return
+                self.gateway_server.store.delete_feishu_webhook(key["key_id"])
+                self._json(HTTPStatus.OK, {"ok": True, "deleted": True})
+                return
+            except (HTTPError, URLError, OSError, WebhookDeliveryError) as exc:
+                self._json(
+                    HTTPStatus.BAD_GATEWAY,
+                    {"ok": False, "error": "Feishu delivery failed: " + clean_text(str(exc), 200)},
+                )
+                return
+            except (ValueError, TypeError) as exc:
+                self._json(HTTPStatus.BAD_REQUEST, {"ok": False, "error": str(exc)})
+                return
+
         if path == "/api/v1/key-requests":
             try:
                 payload = self._read_json()
@@ -1637,6 +1992,8 @@ class GatewayRequestHandler(BaseHTTPRequestHandler):
                 return
             event = normalize_event(payload)
             inserted, event_id = self.gateway_server.store.insert_event(event)
+            if inserted:
+                self.gateway_server.wake_webhook_worker()
         except (ValueError, TypeError) as exc:
             self._json(HTTPStatus.BAD_REQUEST, {"ok": False, "error": str(exc)})
             return
@@ -1679,7 +2036,12 @@ class GatewayRequestHandler(BaseHTTPRequestHandler):
         if self._serve_static(path, public=True):
             return
 
-        if path in {"/api/v1/status", "/api/v1/inbox", "/api/v1/otp/wait"}:
+        if path in {
+            "/api/v1/status",
+            "/api/v1/inbox",
+            "/api/v1/otp/wait",
+            "/api/v1/webhooks/feishu",
+        }:
             key = self._user_key_authorized()
             if not key:
                 self._user_key_unauthorized()
@@ -1693,6 +2055,12 @@ class GatewayRequestHandler(BaseHTTPRequestHandler):
                             key, self.gateway_server.offline_seconds
                         ),
                     },
+                )
+                return
+            if path == "/api/v1/webhooks/feishu":
+                self._json(
+                    HTTPStatus.OK,
+                    {"ok": True, **self.gateway_server.store.get_feishu_webhook(key["key_id"])},
                 )
                 return
             try:
@@ -1888,6 +2256,7 @@ class GatewayHTTPServer(ThreadingHTTPServer):
         bootstrap_device_id: str = "",
         offline_seconds: int = 180,
         heartbeat_seconds: int = 300,
+        webhook_worker_enabled: bool = True,
     ):
         super().__init__(address, GatewayRequestHandler)
         self.store = store
@@ -1896,8 +2265,36 @@ class GatewayHTTPServer(ThreadingHTTPServer):
         self.admin_password = admin_password
         self.offline_seconds = max(30, offline_seconds)
         self.heartbeat_seconds = max(60, heartbeat_seconds)
+        self._webhook_stop = threading.Event()
+        self._webhook_wakeup = threading.Event()
+        self._webhook_thread: Optional[threading.Thread] = None
         if bootstrap_device_id and gateway_token:
             self.store.ensure_device_credential(bootstrap_device_id, gateway_token, bootstrap_device_id)
+        if webhook_worker_enabled:
+            self._webhook_thread = threading.Thread(
+                target=self._webhook_loop, name="vibesms-webhook-worker", daemon=True
+            )
+            self._webhook_thread.start()
+
+    def _webhook_loop(self) -> None:
+        while not self._webhook_stop.is_set():
+            try:
+                self.store.deliver_due_webhooks()
+            except Exception as exc:  # Keep delivery faults isolated from the API server.
+                print("Webhook worker error: %s" % clean_text(str(exc), 300), flush=True)
+            self._webhook_wakeup.wait(30)
+            self._webhook_wakeup.clear()
+
+    def wake_webhook_worker(self) -> None:
+        if self._webhook_thread:
+            self._webhook_wakeup.set()
+
+    def server_close(self) -> None:
+        self._webhook_stop.set()
+        self._webhook_wakeup.set()
+        if self._webhook_thread and self._webhook_thread.is_alive():
+            self._webhook_thread.join(timeout=2)
+        super().server_close()
 
 
 def create_server(
@@ -1910,6 +2307,7 @@ def create_server(
     bootstrap_device_id: str = "",
     offline_seconds: int = 180,
     heartbeat_seconds: int = 300,
+    webhook_worker_enabled: bool = True,
 ) -> GatewayHTTPServer:
     return GatewayHTTPServer(
         (host, port),
@@ -1920,6 +2318,7 @@ def create_server(
         bootstrap_device_id,
         offline_seconds,
         heartbeat_seconds,
+        webhook_worker_enabled,
     )
 
 

@@ -8,7 +8,8 @@ import tempfile
 import threading
 import unittest
 from pathlib import Path
-from urllib.error import HTTPError
+from unittest.mock import MagicMock, patch
+from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from server.app import GatewayStore, create_server, extract_otp
@@ -69,6 +70,7 @@ class GatewayServerTest(unittest.TestCase):
             bootstrap_device_id="SEA-AL10-01",
             offline_seconds=30,
             heartbeat_seconds=60,
+            webhook_worker_enabled=False,
         )
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         self.thread.start()
@@ -209,10 +211,160 @@ class GatewayServerTest(unittest.TestCase):
         self.assertIn("window.location.hash", inbox_script)
         self.assertIn("window.history.replaceState", inbox_script)
         self.assertIn('parameters.get("key")', inbox_script)
+        self.assertIn("/api/v1/webhooks/feishu", inbox_script)
+        self.assertIn('id="webhook-form"', inbox_html)
+        i18n_script = (
+            Path(__file__).resolve().parents[1]
+            / "server"
+            / "static"
+            / "site"
+            / "i18n.js"
+        ).read_text(encoding="utf-8")
+        self.assertIn('new URLSearchParams(url.hash.slice(1)).has("key")', i18n_script)
 
         with self.assertRaises(HTTPError) as raised:
             self.request("/api/v1/inbox?order=desc", user_token="not-a-key")
         self.assertEqual(raised.exception.code, 401)
+
+    def test_feishu_webhook_filters_keywords_and_records_delivery(self):
+        _, issued = self.request(
+            "/api/v1/admin/keys",
+            "POST",
+            {
+                "phone_number": "+8613900088801",
+                "label": "Feishu webhook test",
+                "device_id": "FEISHU-01",
+                "sim_slot": 1,
+            },
+            admin=True,
+        )
+        key = issued["key"]
+        _, binding = self.request(
+            "/api/v1/bindings",
+            "POST",
+            {"device_id": "FEISHU-01", "sim_slot": 1},
+            user_token=key,
+        )
+        device_token = binding["device_token"]
+        with self.assertRaises(HTTPError) as raised:
+            self.request(
+                "/api/v1/webhooks/feishu",
+                "POST",
+                {
+                    "webhook_url": "https://example.com/webhook",
+                    "keywords": ["验证码"],
+                    "enabled": True,
+                },
+                user_token=key,
+            )
+        self.assertEqual(raised.exception.code, 400)
+
+        status, config = self.request(
+            "/api/v1/webhooks/feishu",
+            "POST",
+            {
+                "webhook_url": "https://open.feishu.cn/open-apis/bot/v2/hook/abcdefghijklmnop",
+                "keywords": "验证码, verification code",
+                "enabled": True,
+            },
+            user_token=key,
+        )
+        self.assertEqual(status, 200)
+        self.assertTrue(config["configured"])
+        self.assertEqual(config["keywords"], ["验证码", "verification code"])
+        self.assertNotIn("webhook_url", config)
+
+        fake_response = MagicMock()
+        fake_response.__enter__.return_value = fake_response
+        fake_response.status = 200
+        fake_response.read.return_value = b'{"code":0,"msg":"success"}'
+        with patch("server.app.urlopen", return_value=fake_response) as mocked_urlopen:
+            _, test_result = self.request(
+                "/api/v1/webhooks/feishu/test", "POST", {}, user_token=key
+            )
+        self.assertTrue(test_result["delivered"])
+        test_payload = json.loads(mocked_urlopen.call_args.args[0].data.decode("utf-8"))
+        self.assertIn("配置验证消息", test_payload["content"]["text"])
+
+        self.request(
+            "/api/v1/events",
+            "POST",
+            {
+                "event_id": "feishu-no-match",
+                "device_id": "FEISHU-01",
+                "event_type": "sms",
+                "sender": "Example",
+                "content": "Your parcel has shipped.",
+                "received_at": "2026-08-13T06:00:00+08:00",
+                "sim_slot": 1,
+            },
+            token=device_token,
+        )
+        self.assertEqual(self.server.store.deliver_due_webhooks(), {"sent": 0, "failed": 0})
+
+        self.request(
+            "/api/v1/events",
+            "POST",
+            {
+                "event_id": "feishu-keyword-match",
+                "device_id": "FEISHU-01",
+                "event_type": "sms",
+                "sender": "Example",
+                "content": "你的验证码是 472913，请勿泄露。",
+                "received_at": "2026-08-13T06:01:00+08:00",
+                "sim_slot": 1,
+            },
+            token=device_token,
+        )
+        delivery_response = MagicMock()
+        delivery_response.__enter__.return_value = delivery_response
+        delivery_response.status = 200
+        delivery_response.read.return_value = b'{"StatusCode":0,"StatusMessage":"success"}'
+        with patch("server.app.urlopen", return_value=delivery_response) as mocked_delivery:
+            self.assertEqual(
+                self.server.store.deliver_due_webhooks(), {"sent": 1, "failed": 0}
+            )
+        delivery_payload = json.loads(mocked_delivery.call_args.args[0].data.decode("utf-8"))
+        forwarded_text = delivery_payload["content"]["text"]
+        self.assertIn("验证码是 472913", forwarded_text)
+        self.assertIn("+8613900088801", forwarded_text)
+
+        _, config = self.request(
+            "/api/v1/webhooks/feishu", user_token=key
+        )
+        self.assertEqual(len(config["deliveries"]), 1)
+        self.assertEqual(config["deliveries"][0]["status"], "sent")
+        self.assertEqual(config["deliveries"][0]["attempts"], 1)
+
+        self.request(
+            "/api/v1/events",
+            "POST",
+            {
+                "event_id": "feishu-retry-match",
+                "device_id": "FEISHU-01",
+                "event_type": "sms",
+                "sender": "Example",
+                "content": "第二条验证码 884422",
+                "received_at": "2026-08-13T06:02:00+08:00",
+                "sim_slot": 1,
+            },
+            token=device_token,
+        )
+        with patch("server.app.urlopen", side_effect=URLError("temporary offline")):
+            self.assertEqual(
+                self.server.store.deliver_due_webhooks(), {"sent": 0, "failed": 1}
+            )
+        _, config = self.request("/api/v1/webhooks/feishu", user_token=key)
+        self.assertEqual(config["deliveries"][0]["status"], "failed")
+        self.assertEqual(config["deliveries"][0]["attempts"], 1)
+        self.assertIn("temporary offline", config["deliveries"][0]["last_error"])
+
+        _, deleted = self.request(
+            "/api/v1/webhooks/feishu/delete", "POST", {}, user_token=key
+        )
+        self.assertTrue(deleted["deleted"])
+        _, config = self.request("/api/v1/webhooks/feishu", user_token=key)
+        self.assertFalse(config["configured"])
 
     def test_public_request_and_one_time_activation_flow(self):
         for path, expected in (

@@ -32,7 +32,7 @@
           <dl>
             <div><dt>隔离范围</dt><dd>一个 Key · 一个号码</dd></div>
             <div><dt>凭据保存</dt><dd>仅当前浏览器标签页</dd></div>
-            <div><dt>权限</dt><dd>只读，不含管理功能</dd></div>
+            <div><dt>权限</dt><dd>读取消息与管理本 Key 的转发</dd></div>
           </dl>
         </div>
 
@@ -69,6 +69,30 @@
           <div><span>当前游标</span><strong id="cursor-value">0</strong></div>
           <div><span>最后在线</span><strong id="last-online">—</strong></div>
         </div>
+
+        <section class="webhook-panel" aria-labelledby="webhook-title">
+          <header class="webhook-head">
+            <div><p class="eyebrow">AUTOMATION / FEISHU</p><h2 id="webhook-title">飞书 Webhook 转发</h2></div>
+            <span id="webhook-state" class="webhook-state">尚未配置</span>
+          </header>
+          <p class="webhook-intro">服务端只转发命中关键词的新短信。多个关键词按“任一命中”处理；例如仅填写“验证码”，其他短信不会发送到飞书。</p>
+          <form id="webhook-form" class="webhook-form">
+            <label for="webhook-url">飞书机器人 Webhook 地址 <span id="webhook-url-note">首次配置必填</span><input id="webhook-url" name="webhook_url" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/…"></label>
+            <label for="webhook-keywords">转发关键词 <span>必填，逗号或换行分隔，最多 10 个</span><textarea id="webhook-keywords" name="keywords" rows="3" maxlength="420" placeholder="验证码" required></textarea></label>
+            <label class="webhook-toggle" for="webhook-enabled"><span><strong>启用自动转发</strong><small>关闭后保留配置和历史投递记录</small></span><input id="webhook-enabled" name="enabled" type="checkbox" checked></label>
+            <p class="webhook-privacy">短信正文会发送到你配置的飞书群机器人。Webhook 地址包含访问凭据，服务端需要保存它用于投递，但查询接口不会返回完整地址。</p>
+            <div class="webhook-actions">
+              <button id="webhook-save" type="submit">保存转发设置</button>
+              <button id="webhook-test" class="secondary-button" type="button" disabled>发送测试消息</button>
+              <button id="webhook-delete" class="danger-button" type="button" disabled>删除配置</button>
+            </div>
+            <p id="webhook-feedback" class="webhook-feedback" role="status" aria-live="polite"></p>
+          </form>
+          <div class="delivery-log">
+            <div><h3>最近投递</h3><button id="webhook-refresh" class="quiet-button" type="button">刷新状态</button></div>
+            <ol id="webhook-deliveries"><li class="delivery-empty">配置后，这里会显示命中关键词的投递结果。</li></ol>
+          </div>
+        </section>
 
         <div class="inbox-toolbar">
           <div class="filters" role="group" aria-label="事件类型">

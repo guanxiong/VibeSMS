@@ -14,7 +14,7 @@
 
 客户端和 Skill 可以独立使用、修改和分发；若要部署或改造 VibeSMS 服务端，请联系维护者获取商业授权。完整目录边界见 [docs/REPOSITORY_LICENSING.md](docs/REPOSITORY_LICENSING.md)。
 
-当前版本已提供无账户 Key 接入、后台额度控制的前台自动签发、人工申请与一次性激活码兜底、用户 Key 收件箱、按号码与 SIM 隔离的 Agent Inbox/OTP API、VibeSMS Skill，以及带离线队列和主动心跳的专用 Android Terminal。产品定义见 [docs/VIBESMS_PRODUCT.md](docs/VIBESMS_PRODUCT.md)。
+当前版本已提供无账户 Key 接入、后台额度控制的前台自动签发、人工申请与一次性激活码兜底、用户 Key 收件箱、关键词过滤的飞书机器人 Webhook 转发、按号码与 SIM 隔离的 Agent Inbox/OTP API、VibeSMS Skill，以及带离线队列和主动心跳的专用 Android Terminal。产品定义见 [docs/VIBESMS_PRODUCT.md](docs/VIBESMS_PRODUCT.md)。
 
 > **Public Beta**：仅限接入你自己拥有或获授权管理的 Android 手机与 SIM；VibeSMS 不提供共享号码池，也不面向批量注册、转售或绕过第三方平台规则。请在申请前阅读 [数据与隐私说明](https://sms.shareapi.ai/privacy/)。
 
@@ -22,7 +22,7 @@
 
 - Android 端：VibeSMS Terminal 采集入站短信和来电事件，支持双卡、持久化离线队列、自动补发、主动心跳和经授权 ADB 的自动安装绑定。
 - 服务端：Python 标准库 + SQLite，无第三方运行依赖。
-- 能力：自动签发额度开关、原子扣减名额、站内 Key 申请、一次性激活码兑换、用户 Key 签发/轮换/禁用、Key 登录收件箱、Android 首次绑定、设备独立上传密钥、Agent 隔离查询、OTP 长轮询、事件去重、主动心跳和响应式管理页面。
+- 能力：自动签发额度开关、每设备限领、站内 Key 申请、一次性激活码兑换、用户 Key 签发/轮换/禁用、Key 登录收件箱、飞书 Webhook 与关键词过滤、持久化投递重试、Android 首次绑定、设备独立上传密钥、Agent 隔离查询、OTP 长轮询、事件去重、主动心跳和响应式管理页面。
 - 暂不包含：主动发短信、远程接听、MDM、集群调度和高可用。
 
 ## Android APK
@@ -102,7 +102,7 @@ skills/vibesms/      可安装的 VibeSMS Agent Skill 与零依赖客户端
 - `GET/POST /api/v1/admin/keys`：列出或签发用户 Key，需要管理员认证。
 - `POST /api/v1/admin/keys/{key_id}/{rotate|disable|unbind}`：管理用户 Key，需要管理员认证。
 - `POST /api/v1/key-requests`：提交邮箱、本人手机号和用途；有自动名额时立即返回只显示一次的 Key，否则进入人工队列。
-- `GET /api/v1/onboarding/status`：只返回当前是否有自动签发名额，不公开具体剩余额度。
+- `GET /api/v1/onboarding/status`：返回自动签发剩余额度和当前匿名设备是否已领取。
 - `GET/POST /api/v1/admin/onboarding-settings`：管理员启停自动签发并设置剩余名额。
 - `GET/POST /api/v1/admin/campaigns`：管理员创建、列出、启停推广活动，并由活动代码生成公开申请链接。
 - `GET /api/v1/admin/acquisition-funnel`：按推广活动汇总申请、Key 签发、绑定、24 小时首次心跳和首个事件；仅管理员可读，不返回短信内容或个人标识。
@@ -112,6 +112,9 @@ skills/vibesms/      可安装的 VibeSMS Agent Skill 与零依赖客户端
 - `GET /api/v1/status`：查询当前 Key 的终端状态与事件游标。
 - `GET /api/v1/inbox`：按当前 Key 隔离读取短信与来电。
 - `GET /api/v1/otp/wait`：等待当前 Key 对应号码的新验证码，最长 60 秒。
+- `GET/POST /api/v1/webhooks/feishu`：使用当前用户 Key 查看或保存飞书机器人地址、关键词与启用状态；查询不返回完整 Webhook 地址。
+- `POST /api/v1/webhooks/feishu/test`：向已配置的飞书机器人发送不含真实短信的测试消息。
+- `POST /api/v1/webhooks/feishu/delete`：删除当前 Key 的飞书配置和投递记录。
 - `GET /api/health`：健康检查和统计。
 
 ## Agent Skill

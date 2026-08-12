@@ -44,10 +44,13 @@ function highlightOtp(value) {
   return escapeHtml(value).replace(/\b(\d{4,8})\b/g, "<mark>$1</mark>");
 }
 
-async function keyFetch(path) {
+async function keyFetch(path, options = {}) {
+  const headers = { Authorization: `Bearer ${state.key}`, ...(options.headers || {}) };
+  if (options.body) headers["Content-Type"] = "application/json";
   const response = await fetch(path, {
     cache: "no-store",
-    headers: { Authorization: `Bearer ${state.key}` }
+    ...options,
+    headers
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
@@ -56,6 +59,64 @@ async function keyFetch(path) {
     throw error;
   }
   return payload;
+}
+
+function webhookFeedback(message = "", isError = false) {
+  const feedback = document.querySelector("#webhook-feedback");
+  feedback.textContent = message;
+  feedback.classList.toggle("is-error", isError);
+}
+
+function renderWebhookDeliveries(deliveries = []) {
+  const list = document.querySelector("#webhook-deliveries");
+  if (!deliveries.length) {
+    list.innerHTML = `<li class="delivery-empty">${tr("尚无命中关键词的投递记录。", "No keyword-matched deliveries yet.")}</li>`;
+    return;
+  }
+  list.innerHTML = deliveries.map(delivery => {
+    const failed = delivery.status === "failed";
+    const statusLabel = delivery.status === "sent"
+      ? tr("已发送", "SENT")
+      : failed ? tr("待重试", "RETRY") : tr("等待中", "PENDING");
+    const detail = failed
+      ? `${tr("第", "Attempt ")}${delivery.attempts}${tr("次失败", " failed")} · ${escapeHtml(delivery.last_error || "")}`
+      : `${escapeHtml(delivery.sender || tr("未知发送方", "Unknown sender"))} · ${tr("尝试", "attempts")} ${delivery.attempts}`;
+    return `<li class="delivery-item">
+      <span class="delivery-status ${failed ? "failed" : ""}">${statusLabel}</span>
+      <span><strong>${detail}</strong></span>
+      <time>${formatTime(delivery.sent_at || delivery.updated_at || delivery.created_at)}</time>
+    </li>`;
+  }).join("");
+}
+
+function renderWebhook(config) {
+  const configured = Boolean(config.configured);
+  const stateNode = document.querySelector("#webhook-state");
+  stateNode.textContent = configured
+    ? config.enabled ? tr("转发已启用", "Forwarding enabled") : tr("转发已暂停", "Forwarding paused")
+    : tr("尚未配置", "Not configured");
+  stateNode.classList.toggle("is-enabled", configured && config.enabled);
+  document.querySelector("#webhook-keywords").value = configured ? (config.keywords || []).join("\n") : "验证码";
+  document.querySelector("#webhook-enabled").checked = configured ? Boolean(config.enabled) : true;
+  document.querySelector("#webhook-url").value = "";
+  document.querySelector("#webhook-url").placeholder = configured
+    ? tr(`已配置 ${config.webhook_hint || ""}；留空保持不变`, `Configured ${config.webhook_hint || ""}; leave blank to keep it`)
+    : "https://open.feishu.cn/open-apis/bot/v2/hook/…";
+  document.querySelector("#webhook-url-note").textContent = configured
+    ? tr("已配置，留空保持原地址", "Configured; leave blank to keep it")
+    : tr("首次配置必填", "Required for first setup");
+  document.querySelector("#webhook-test").disabled = !configured;
+  document.querySelector("#webhook-delete").disabled = !configured;
+  renderWebhookDeliveries(config.deliveries || []);
+}
+
+async function loadWebhook() {
+  try {
+    const config = await keyFetch("/api/v1/webhooks/feishu");
+    renderWebhook(config);
+  } catch (error) {
+    webhookFeedback(tr(`读取转发设置失败：${error.message}`, `Failed to load forwarding settings: ${error.message}`), true);
+  }
 }
 
 function renderStatus(status) {
@@ -166,7 +227,7 @@ async function authenticate(key) {
     sessionStorage.setItem(STORAGE_KEY, key);
     renderStatus(status);
     showInbox();
-    await refreshInbox();
+    await Promise.all([refreshInbox(), loadWebhook()]);
   } catch (error) {
     state.key = "";
     sessionStorage.removeItem(STORAGE_KEY);
@@ -187,6 +248,58 @@ loginForm.addEventListener("submit", event => {
 
 document.querySelector("#logout-button").addEventListener("click", () => showLogin());
 document.querySelector("#refresh-button").addEventListener("click", refreshInbox);
+document.querySelector("#webhook-refresh").addEventListener("click", loadWebhook);
+document.querySelector("#webhook-form").addEventListener("submit", async event => {
+  event.preventDefault();
+  const saveButton = document.querySelector("#webhook-save");
+  saveButton.disabled = true;
+  webhookFeedback(tr("正在保存…", "Saving…"));
+  try {
+    const config = await keyFetch("/api/v1/webhooks/feishu", {
+      method: "POST",
+      body: JSON.stringify({
+        webhook_url: document.querySelector("#webhook-url").value.trim(),
+        keywords: document.querySelector("#webhook-keywords").value,
+        enabled: document.querySelector("#webhook-enabled").checked
+      })
+    });
+    renderWebhook(config);
+    webhookFeedback(tr("转发设置已保存。", "Forwarding settings saved."));
+  } catch (error) {
+    webhookFeedback(tr(`保存失败：${error.message}`, `Save failed: ${error.message}`), true);
+  } finally {
+    saveButton.disabled = false;
+  }
+});
+
+document.querySelector("#webhook-test").addEventListener("click", async event => {
+  const button = event.currentTarget;
+  button.disabled = true;
+  webhookFeedback(tr("正在向飞书发送测试消息…", "Sending a test message to Feishu…"));
+  try {
+    await keyFetch("/api/v1/webhooks/feishu/test", { method: "POST", body: "{}" });
+    webhookFeedback(tr("飞书已接收测试消息。", "Feishu received the test message."));
+    await loadWebhook();
+  } catch (error) {
+    webhookFeedback(tr(`测试失败：${error.message}`, `Test failed: ${error.message}`), true);
+  } finally {
+    button.disabled = false;
+  }
+});
+
+document.querySelector("#webhook-delete").addEventListener("click", async event => {
+  if (!window.confirm(tr("删除飞书 Webhook 配置和投递记录？", "Delete the Feishu webhook and delivery history?"))) return;
+  const button = event.currentTarget;
+  button.disabled = true;
+  try {
+    await keyFetch("/api/v1/webhooks/feishu/delete", { method: "POST", body: "{}" });
+    renderWebhook({ configured: false, deliveries: [] });
+    webhookFeedback(tr("飞书转发配置已删除。", "Feishu forwarding configuration deleted."));
+  } catch (error) {
+    webhookFeedback(tr(`删除失败：${error.message}`, `Delete failed: ${error.message}`), true);
+    button.disabled = false;
+  }
+});
 document.querySelectorAll(".filter").forEach(button => button.addEventListener("click", () => {
   document.querySelectorAll(".filter").forEach(candidate => {
     const active = candidate === button;

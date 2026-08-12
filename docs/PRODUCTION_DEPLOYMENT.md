@@ -10,7 +10,7 @@
 - 证书：acme.sh + Namecheap DNS-01，自动续期并 reload OpenResty
 - 数据：`/opt/sms-gateway/data/gateway.db`
 - 备份：每天 UTC 03:17 生成 SQLite 在线备份，保留 30 天
-- 当前版本：`0.11.0`，首页使用原地申请弹窗并实时显示剩余自动签发名额；每个匿名领取设备限自动签发一次，重复领取转入人工审核且不扣额度。页面每 30 秒及重新可见时同步当前设备资格；公开页面支持中英文切换与语言持久化。同时启用人工激活码兜底、用户 Key 收件箱、Agent USB 自动配置、Android 绑定和 Agent Inbox/OTP API；Android Terminal APK 为 v0.4.9
+- 当前版本：`0.12.0`，Key 收件箱支持按当前 Key 配置飞书机器人 Webhook、1–10 个关键词和启用状态；只有命中任一关键词的新短信进入持久化投递队列，失败采用指数退避并最多重试 5 次。查询接口只返回脱敏提示，不返回完整 Webhook 地址。首页继续使用原地申请弹窗，每个匿名领取设备限自动签发一次；Android Terminal APK 为 v0.4.9
 
 常用操作：
 
