@@ -55,7 +55,7 @@
     "返回 VibeSMS，确认终端状态显示": "Return to VibeSMS and confirm the terminal says ",
     "已允许后台运行": "Background operation allowed",
     "；Web 收件箱可查看最后在线时间。": ". The web inbox shows the last online time.",
-    "说明：": "Note:",
+    "说明：": "Note: ",
     "终端约每 9 分钟尝试一次锁屏心跳，15 分钟任务作为兜底。厂商节能策略仍可能延迟执行；固定终端保持供电更稳定。": "The terminal attempts a lock-screen heartbeat about every 9 minutes, with a 15-minute fallback job. Vendor power policies can still delay execution; a dedicated terminal is more reliable when kept powered.",
     "先用自己的号码，": "Bring your own number.",
     "把真实需求带进 Beta。": "Bring real needs to the beta.",
@@ -87,8 +87,8 @@
     "Skills.sh 仓库页": "Skills.sh listing",
     "一条命令安装": "Install with one command",
     "复制命令": "Copy command",
-    "GitHub CLI：": "GitHub CLI:",
-    "Secret：": "Secret:",
+    "GitHub CLI：": "GitHub CLI: ",
+    "Secret：": "Secret: ",
     "把 Key 保存为": "Store the Key as",
     "，不要放进提示词、源码或聊天记录。": "; never put it in prompts, source code, or chat history.",
     "安装后可以直接对 Agent 说：": "After installation, ask your agent:",
@@ -139,7 +139,7 @@
     "提交申请": "Submit request",
     "仅限你拥有或获授权管理的号码。不要提交短信正文、验证码或凭据。": "Only for numbers you own or are authorized to manage. Do not submit message bodies, verification codes, or credentials.",
     "Key 已生成，接下来交给 Agent。": "Your Key is ready. Hand it to your agent.",
-    "先复制 Key 并保存为本机 Secret ": "Copy the Key and store it as the local secret ",
+    "先复制 Key 并保存为本机 Secret": "Copy the Key and store it as the local secret",
     "。为避免泄露，下面的 Prompt 不包含你的 Key。": ". To prevent exposure, the prompt below does not contain your Key.",
     "复制 Key": "Copy Key",
     "安装 VibeSMS Skill": "Install the VibeSMS Skill",
@@ -153,7 +153,6 @@
     "打开 Key 收件箱 →": "Open Key Inbox →",
     "完成": "Done",
     "申请已进入审核队列。": "Your request is in the review queue.",
-    "申请编号 ": "Request ID ",
     "。当前自动名额不可用，审核后会通过你填写的联系方式发送一次性激活码。": ". Instant issue is currently unavailable. After review, a one-time activation code will be sent using your contact details.",
     "兑换激活码 →": "Redeem activation code →",
     "关闭": "Close",
@@ -329,6 +328,11 @@
   nodes.forEach(translateNode);
 
   if (language === "en") {
+    document.querySelectorAll(".keep-together").forEach((element) => {
+      if (element.nextElementSibling?.classList.contains("keep-together")) {
+        element.append(document.createTextNode(" "));
+      }
+    });
     document.querySelectorAll("[placeholder]").forEach((element) => {
       const translated = translations[element.getAttribute("placeholder")];
       if (translated) element.setAttribute("placeholder", translated);

@@ -140,6 +140,7 @@ class GatewayServerTest(unittest.TestCase):
         self.assertIn("vibesms.locale", i18n)
         self.assertIn("Your phone number, ready for your agent", i18n)
         self.assertIn("Data & Privacy Notice", i18n)
+        self.assertIn('element.append(document.createTextNode(" "))', i18n)
 
         with urlopen(self.base_url + "/site/og-vibesms.jpg", timeout=3) as response:
             self.assertEqual(response.status, 200)

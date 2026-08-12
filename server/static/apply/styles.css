@@ -15,7 +15,7 @@ a { color: inherit; }
 nav { display: flex; flex-wrap: wrap; justify-content: end; gap: 18px; color: #344036; font-size: 14px; }
 nav a { text-decoration: none; } nav a:hover { color: var(--accent); text-decoration: underline; text-underline-offset: 4px; }
 .locale-switch { display: inline-flex; align-items: center; flex: 0 0 auto; min-width: 67px; padding: 3px; border: 1px solid var(--line); border-radius: 999px; background: #ebe8de; }
-.locale-switch a { flex: 1; min-width: 28px; padding: 4px 6px; border-radius: 999px; color: var(--muted); font: 800 9px/1 ui-monospace, monospace; text-align: center; text-decoration: none; }
+.locale-switch a { flex: 1; min-width: 28px; padding: 4px 6px; border-radius: 999px; color: var(--muted); font: 800 10px/1 ui-monospace, monospace; text-align: center; text-decoration: none; }
 .locale-switch a[aria-current="true"] { color: white; background: var(--deep); }
 main { display: grid; grid-template-columns: minmax(0, .9fr) minmax(360px, .8fr); gap: clamp(40px, 8vw, 112px); padding-block: clamp(54px, 10vw, 132px); }
 .intro, .form-card { min-width: 0; }

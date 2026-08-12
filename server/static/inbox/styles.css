@@ -31,10 +31,10 @@ a { color: inherit; }
 .brand-mark i:nth-child(2) { height: 14px; }
 .brand-mark i:nth-child(3) { height: 10px; }
 nav { display: flex; gap: 26px; }
-nav a { color: #3d463f; font-size: 12px; font-weight: 680; text-decoration: none; }
+nav a { color: #3d463f; font-size: 13px; font-weight: 680; text-decoration: none; }
 nav a:hover { color: var(--green); }
 .locale-switch { display: inline-flex; align-items: center; flex: 0 0 auto; min-width: 67px; padding: 3px; border: 1px solid var(--line); border-radius: 999px; background: #ebe8de; }
-.locale-switch a { flex: 1; min-width: 28px; padding: 4px 6px; border-radius: 999px; color: var(--muted); font: 750 9px/1 ui-monospace, monospace; text-align: center; text-decoration: none; }
+.locale-switch a { flex: 1; min-width: 28px; padding: 4px 6px; border-radius: 999px; color: var(--muted); font: 750 10px/1 ui-monospace, monospace; text-align: center; text-decoration: none; }
 .locale-switch a[aria-current="true"] { color: white; background: var(--ink); }
 
 .login-layout { min-height: calc(100vh - 164px); display: grid; grid-template-columns: minmax(0, 1fr) minmax(420px, .82fr); gap: clamp(60px, 9vw, 140px); align-items: center; padding: 72px 0 88px; }
@@ -58,8 +58,8 @@ html[lang="en"] .keep-together { white-space: normal; }
 .login-form > button:hover { background: #cdfa8f; }
 .login-form > button:disabled { cursor: wait; opacity: .62; }
 .form-error { min-height: 22px; margin: 13px 0 0; color: #f3a28f; font-size: 12px; line-height: 1.6; }
-.form-note { margin: 17px 0 0; color: #829087; font-size: 11px; line-height: 1.7; }
-.form-actions { display: flex; justify-content: space-between; gap: 16px; margin: 25px -28px -28px; padding: 18px 28px; border-top: 1px solid var(--terminal-line); color: #849087; font-size: 11px; }
+.form-note { margin: 17px 0 0; color: #829087; font-size: 12px; line-height: 1.72; }
+.form-actions { display: flex; justify-content: space-between; gap: 16px; margin: 25px -28px -28px; padding: 18px 28px; border-top: 1px solid var(--terminal-line); color: #849087; font-size: 12px; }
 .form-actions a { color: var(--green-bright); font-weight: 700; text-decoration: none; }
 
 .inbox-view { min-height: calc(100vh - 164px); padding: 64px 0 88px; }
@@ -118,7 +118,6 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 3px solid 
   .login-layout { min-height: auto; padding: 52px 0 70px; }
   h1 { font-size: clamp(41px, 12vw, 58px); }
   html[lang="en"] h1 { font-size: clamp(38px, 11vw, 52px); }
-  .keep-together { white-space: normal; }
   .topbar { gap: 12px; }
   nav { margin-left: auto; }
   .login-form input { font-size: 16px; }
