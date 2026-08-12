@@ -4,7 +4,19 @@
 
 把 Android 手机变成 Agent 可调用的短信与来电终端。用户使用一个 Key 接入自己的 SIM，设备将事件可靠上传到 `sms.shareapi.ai`，Agent 再基于同一 Key 隔离读取。
 
+## 仓库与许可边界
+
+本仓库采用分目录授权，不是一个整体开源项目：
+
+- [Android Terminal](android/)：Apache-2.0 开源，见 [android/LICENSE](android/LICENSE)。
+- [VibeSMS Agent Skill](skills/vibesms/)：Apache-2.0 开源，见 [skills/vibesms/LICENSE](skills/vibesms/LICENSE)。
+- 服务端、Web 控制台、部署与运维代码（包括 `server/`、`deploy/`、`bin/`、根目录 Docker 配置）：保留商业许可，未经单独书面授权不得复制、修改、分发或提供托管服务，见 [LICENSE](LICENSE)。
+
+客户端和 Skill 可以独立使用、修改和分发；若要部署或改造 VibeSMS 服务端，请联系维护者获取商业授权。完整目录边界见 [docs/REPOSITORY_LICENSING.md](docs/REPOSITORY_LICENSING.md)。
+
 当前版本已提供无账户 Key 接入、后台额度控制的前台自动签发、人工申请与一次性激活码兜底、用户 Key 收件箱、按号码与 SIM 隔离的 Agent Inbox/OTP API、VibeSMS Skill，以及带离线队列和主动心跳的专用 Android Terminal。产品定义见 [docs/VIBESMS_PRODUCT.md](docs/VIBESMS_PRODUCT.md)。
+
+> **Public Beta**：仅限接入你自己拥有或获授权管理的 Android 手机与 SIM；VibeSMS 不提供共享号码池，也不面向批量注册、转售或绕过第三方平台规则。请在申请前阅读 [数据与隐私说明](https://sms.shareapi.ai/privacy/)。
 
 ## 当前范围
 
@@ -15,15 +27,16 @@
 
 ## Android APK
 
-VibeSMS Android Terminal v0.4.0 使用正式发布密钥签名，并通过 GitHub Releases 分发：
+VibeSMS Android Terminal v0.4.9 使用正式发布密钥签名，并通过 GitHub Releases 分发：
 
-- [下载 VibeSMS-0.4.0.apk](https://github.com/guanxiong/VibeSMS/releases/download/v0.4.0/VibeSMS-0.4.0.apk)
-- [版本说明与 SHA-256 校验值](https://github.com/guanxiong/VibeSMS/releases/tag/v0.4.0)
+- [下载 VibeSMS-0.4.9.apk](https://github.com/guanxiong/VibeSMS/releases/download/v0.4.9/VibeSMS-0.4.9.apk)
+- [版本说明与 SHA-256 校验值](https://github.com/guanxiong/VibeSMS/releases/tag/v0.4.9)
 
 可以在 APK 内手工输入 Key、选择 SIM 并连接；也可以安装 VibeSMS Skill，把 Key 保存为本机 `VIBESMS_KEY` Secret，再让 Agent 对已解锁且获得 ADB 授权的 USB 手机执行自动安装、权限配置、SIM 绑定和在线验证。Android 端使用 Android Keystore 加密保存已绑定的 Key 和设备上传凭据，便于显示 Key 并直接打开 Web 收件箱。
 
 - 源码：[github.com/guanxiong/VibeSMS](https://github.com/guanxiong/VibeSMS)
 - 云端入口：[sms.shareapi.ai](https://sms.shareapi.ai)
+- 数据与隐私说明：[sms.shareapi.ai/privacy](https://sms.shareapi.ai/privacy/)
 - Key 收件箱：[sms.shareapi.ai/inbox](https://sms.shareapi.ai/inbox/)
 - 申请测试 Key：[sms.shareapi.ai/apply](https://sms.shareapi.ai/apply/)
 - 兑换激活码：[sms.shareapi.ai/activate](https://sms.shareapi.ai/activate/)
@@ -91,6 +104,8 @@ skills/vibesms/      可安装的 VibeSMS Agent Skill 与零依赖客户端
 - `POST /api/v1/key-requests`：提交邮箱、本人手机号和用途；有自动名额时立即返回只显示一次的 Key，否则进入人工队列。
 - `GET /api/v1/onboarding/status`：只返回当前是否有自动签发名额，不公开具体剩余额度。
 - `GET/POST /api/v1/admin/onboarding-settings`：管理员启停自动签发并设置剩余名额。
+- `GET/POST /api/v1/admin/campaigns`：管理员创建、列出、启停推广活动，并由活动代码生成公开申请链接。
+- `GET /api/v1/admin/acquisition-funnel`：按推广活动汇总申请、Key 签发、绑定、24 小时首次心跳和首个事件；仅管理员可读，不返回短信内容或个人标识。
 - `POST /api/v1/activations/redeem`：用一次性激活码和手机号兑换用户 Key，无需认证，Key 明文仅返回一次。
 - `GET/POST /api/v1/admin/{key-requests|activation-codes}`：查看申请、签发激活码；`POST /api/v1/admin/activation-codes/{id}/disable` 作废未使用激活码，均需要管理员认证。
 - `POST /api/v1/bindings`：用户 Key 首次绑定设备与 SIM，返回仅显示一次的设备 Token。
@@ -137,4 +152,4 @@ python3 -m unittest -v
 
 ## License
 
-本仓库目前公开可见，但尚未选择开源许可证。在许可证确定前，源码版权仍由作者保留，项目页因此使用 “Public Repository” 而非 “Open Source”。
+本仓库采用分目录授权：Android Terminal 与 VibeSMS Agent Skill 为 [Apache-2.0](licenses/Apache-2.0.txt)；服务端及其部署、运维代码为商业/专有许可。详见 [LICENSE](LICENSE) 与 [目录授权说明](docs/REPOSITORY_LICENSING.md)。

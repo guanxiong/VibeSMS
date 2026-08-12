@@ -29,6 +29,7 @@
         <a href="#api">Agent API</a>
         <a href="#skill">Agent Skill</a>
         <a href="#security">安全</a>
+        <a href="/privacy/">隐私</a>
         <a href="https://github.com/guanxiong/VibeSMS">GitHub</a>
       </nav>
       <a class="console-link" href="/inbox/">Key 收件箱 <span aria-hidden="true">↗</span></a>
@@ -42,7 +43,7 @@
           <p class="lede">把一台 Android 手机变成可靠的短信与来电终端。一个 Key 绑定一个号码，Agent 只读取属于它的事件。</p>
           <div class="hero-actions">
             <a class="button primary" href="/apply/" data-open-key-dialog>申请测试 Key <span aria-hidden="true">→</span></a>
-            <a class="button secondary" href="https://github.com/guanxiong/VibeSMS/releases/download/v0.4.0/VibeSMS-0.4.0.apk">下载 Android APK <span class="release-badge">v0.4.0</span></a>
+            <a class="button secondary" href="https://github.com/guanxiong/VibeSMS/releases/download/v0.4.9/VibeSMS-0.4.9.apk">下载 Android APK <span class="release-badge">v0.4.9</span></a>
             <a class="hero-text-link" href="/activate/">已有激活码？兑换 Key <span aria-hidden="true">→</span></a>
           </div>
           <dl class="hero-facts">
@@ -93,8 +94,8 @@
           </li>
           <li>
             <span class="step-number">02</span>
-            <div><h3>连接 Android</h3><p>安装 VibeSMS Terminal，输入 Key、选择 SIM，离线事件会在网络恢复后补发。</p></div>
-            <a class="step-action" href="https://github.com/guanxiong/VibeSMS/releases/download/v0.4.0/VibeSMS-0.4.0.apk">下载 APK <span aria-hidden="true">↓</span></a>
+            <div><h3>连接 Android</h3><p>安装 VibeSMS Terminal，输入 Key、选择 SIM，并按下方说明允许锁屏后台运行；离线事件会在网络恢复后补发。</p></div>
+            <a class="step-action" href="https://github.com/guanxiong/VibeSMS/releases/download/v0.4.9/VibeSMS-0.4.9.apk">下载 APK <span aria-hidden="true">↓</span></a>
           </li>
           <li>
             <span class="step-number">03</span>
@@ -102,6 +103,37 @@
             <a class="step-action" href="#skill">安装 Skill <span aria-hidden="true">↓</span></a>
           </li>
         </ol>
+
+        <aside class="keepalive-guide" aria-labelledby="keepalive-title">
+          <div>
+            <p class="section-index">HUAWEI / LOCK-SCREEN SETUP</p>
+            <h3 id="keepalive-title">华为手机请允许 VibeSMS 后台启动</h3>
+            <p>华为系统可能在断开电源并锁屏后暂停第三方应用。完成绑定后，请额外检查以下设置；菜单名称会因 EMUI 版本略有不同。</p>
+          </div>
+          <ol>
+            <li><span>01</span><p>打开<strong>设置 → 应用 → 应用启动管理</strong>，找到 VibeSMS。</p></li>
+            <li><span>02</span><p>关闭<strong>自动管理</strong>，打开<strong>允许自启动、允许关联启动、允许后台活动</strong>。</p></li>
+            <li><span>03</span><p>在<strong>电池优化</strong>中将 VibeSMS 设为<strong>不允许优化</strong>；再进入<strong>设置 → 电池 → 更多电池设置</strong>，开启<strong>休眠时始终保持网络连接</strong>。</p></li>
+            <li><span>04</span><p>返回 VibeSMS，确认终端状态显示<strong>已允许后台运行</strong>；Web 收件箱可查看最后在线时间。</p></li>
+          </ol>
+          <p class="keepalive-note"><strong>说明：</strong>终端约每 9 分钟尝试一次锁屏心跳，15 分钟任务作为兜底。厂商节能策略仍可能延迟执行；固定终端保持供电更稳定。</p>
+        </aside>
+      </section>
+
+      <section class="section beta-section" aria-labelledby="beta-title">
+        <div class="beta-heading">
+          <p class="section-index">PUBLIC BETA / NOW OPEN</p>
+          <h2 id="beta-title"><span class="keep-together">先用自己的号码，</span><br><span class="keep-together">把真实需求带进 Beta。</span></h2>
+        </div>
+        <div class="beta-copy">
+          <p>VibeSMS 正在邀请需要把自己 Android 手机和 SIM 接入 Agent 的开发者参与测试。自动名额开放时可立即领取 Key；名额暂停后，我们会人工审核申请。</p>
+          <ul>
+            <li>仅接入你拥有或获授权管理的号码</li>
+            <li>不提供共享号码池，也不面向批量注册、转售或规避平台规则</li>
+            <li>Beta 仍在迭代；请先在非关键工作流中验证</li>
+          </ul>
+          <div class="beta-actions"><a class="button primary" href="/apply/" data-open-key-dialog>申请测试 Key <span aria-hidden="true">→</span></a><a class="step-action" href="/privacy/">查看数据与隐私说明 <span aria-hidden="true">→</span></a></div>
+        </div>
       </section>
 
       <section id="api" class="section api-section">
@@ -291,7 +323,7 @@ gh skill install guanxiong/VibeSMS
     <footer>
       <a class="brand footer-brand" href="/"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span><span>VibeSMS</span></a>
       <p>Android SMS infrastructure for agents.</p>
-      <div><a href="https://github.com/guanxiong/VibeSMS">GitHub</a><a href="https://github.com/guanxiong/VibeSMS/blob/main/SECURITY.md">Security</a><a href="/inbox/">Inbox</a><a href="/admin/">Admin</a></div>
+      <div><a href="https://github.com/guanxiong/VibeSMS">GitHub</a><a href="https://github.com/guanxiong/VibeSMS/blob/main/SECURITY.md">Security</a><a href="/privacy/">Privacy</a><a href="/inbox/">Inbox</a><a href="/admin/">Admin</a></div>
     </footer>
 
     <script src="/site/app.js" defer></script>

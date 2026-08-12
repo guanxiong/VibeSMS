@@ -5,11 +5,11 @@ import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.os.Build;
 import android.os.PowerManager;
 import android.os.SystemClock;
 
 import java.io.IOException;
-import java.time.Instant;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -36,10 +36,23 @@ public final class KeepAliveReceiver extends BroadcastReceiver {
                 REQUEST_CODE,
                 intent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-        manager.setAndAllowWhileIdle(
-                AlarmManager.ELAPSED_REALTIME_WAKEUP,
-                SystemClock.elapsedRealtime() + INTERVAL_MS,
-                heartbeat);
+        long triggerAt = SystemClock.elapsedRealtime() + INTERVAL_MS;
+        try {
+            // Android 10 does not require exact-alarm special access. An exact alarm is
+            // important here because inexact allow-while-idle alarms can be batched into
+            // progressively longer deep-idle maintenance windows on vendor ROMs.
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S
+                    || manager.canScheduleExactAlarms()) {
+                manager.setExactAndAllowWhileIdle(
+                        AlarmManager.ELAPSED_REALTIME_WAKEUP, triggerAt, heartbeat);
+            } else {
+                manager.setAndAllowWhileIdle(
+                        AlarmManager.ELAPSED_REALTIME_WAKEUP, triggerAt, heartbeat);
+            }
+        } catch (SecurityException ignored) {
+            manager.setAndAllowWhileIdle(
+                    AlarmManager.ELAPSED_REALTIME_WAKEUP, triggerAt, heartbeat);
+        }
     }
 
     @Override
@@ -47,6 +60,7 @@ public final class KeepAliveReceiver extends BroadcastReceiver {
         if (intent == null || !ACTION_HEARTBEAT.equals(intent.getAction())) {
             return;
         }
+        KeepAliveService.start(context);
         schedule(context);
         String token = TerminalConfig.deviceToken(context);
         if (token.isBlank()) {
@@ -69,13 +83,16 @@ public final class KeepAliveReceiver extends BroadcastReceiver {
                         "/api/v1/devices/heartbeat",
                         EventPayloads.heartbeat(context).toString(),
                         token);
-                TerminalConfig.recordUpload(context, "锁屏心跳成功 · " + Instant.now());
+                TerminalConfig.recordUpload(context, "锁屏心跳成功");
             } catch (IOException error) {
                 String message = error.getMessage();
                 TerminalConfig.recordUpload(
                         context,
                         "锁屏心跳失败 · "
                                 + (message == null || message.isBlank() ? "network error" : message));
+                // Preserve a failed heartbeat in the outbox so JobScheduler can retry as
+                // soon as connectivity returns instead of waiting for the next alarm.
+                UploadScheduler.enqueueHeartbeat(context);
             } finally {
                 if (wakeLock != null && wakeLock.isHeld()) {
                     wakeLock.release();

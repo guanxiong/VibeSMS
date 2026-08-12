@@ -3,17 +3,24 @@ package ai.shareapi.vibesms;
 import android.Manifest;
 import android.app.Activity;
 import android.content.ActivityNotFoundException;
+import android.content.ComponentName;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Typeface;
+import android.graphics.text.LineBreaker;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.PowerManager;
 import android.provider.Settings;
+import android.text.Layout;
 import android.text.InputType;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.Spinner;
@@ -42,9 +49,23 @@ public final class MainActivity extends Activity {
     private Button keepAliveButton;
     private TextView bindResult;
     private LinearLayout bindingsContainer;
-    private TextView statusText;
+    private LinearLayout statusContainer;
     private View permissionPanel;
+    private View huaweiKeepAlivePanel;
+    private TextView huaweiKeepAliveWarning;
+    private TextView huaweiBatteryState;
+    private CheckBox huaweiAppLaunchConfirmed;
+    private CheckBox huaweiSleepNetworkConfirmed;
+    private boolean tokenRepairInProgress;
     private final List<SimResolver.Option> simOptions = new ArrayList<>();
+    private final Handler statusHandler = new Handler(Looper.getMainLooper());
+    private final Runnable statusRefresh = new Runnable() {
+        @Override
+        public void run() {
+            renderStatus();
+            statusHandler.postDelayed(this, 5_000L);
+        }
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -59,12 +80,33 @@ public final class MainActivity extends Activity {
         keepAliveButton = findViewById(R.id.keepAliveButton);
         bindResult = findViewById(R.id.bindResult);
         bindingsContainer = findViewById(R.id.bindingsContainer);
-        statusText = findViewById(R.id.statusText);
+        statusContainer = findViewById(R.id.statusContainer);
+        huaweiKeepAlivePanel = findViewById(R.id.huaweiKeepAlivePanel);
+        huaweiKeepAliveWarning = findViewById(R.id.huaweiKeepAliveWarning);
+        huaweiBatteryState = findViewById(R.id.huaweiBatteryState);
+        huaweiAppLaunchConfirmed = findViewById(R.id.huaweiAppLaunchConfirmed);
+        huaweiSleepNetworkConfirmed = findViewById(R.id.huaweiSleepNetworkConfirmed);
 
         findViewById(R.id.permissionButton).setOnClickListener(
                 view -> requestPermissions(REQUIRED_PERMISSIONS, PERMISSION_REQUEST));
         bindButton.setOnClickListener(view -> bindSelectedSim());
         keepAliveButton.setOnClickListener(view -> requestBatteryExemption());
+        findViewById(R.id.huaweiAppLaunchButton).setOnClickListener(
+                view -> openHuaweiAppLaunchSettings());
+        findViewById(R.id.huaweiBatterySettingsButton).setOnClickListener(
+                view -> openHuaweiBatterySettings());
+        huaweiAppLaunchConfirmed.setChecked(
+                TerminalConfig.huaweiAppLaunchConfirmed(this));
+        huaweiSleepNetworkConfirmed.setChecked(
+                TerminalConfig.huaweiSleepNetworkConfirmed(this));
+        huaweiAppLaunchConfirmed.setOnCheckedChangeListener((button, checked) -> {
+            TerminalConfig.setHuaweiAppLaunchConfirmed(this, checked);
+            renderHuaweiKeepAlive();
+        });
+        huaweiSleepNetworkConfirmed.setOnCheckedChangeListener((button, checked) -> {
+            TerminalConfig.setHuaweiSleepNetworkConfirmed(this, checked);
+            renderHuaweiKeepAlive();
+        });
         findViewById(R.id.syncButton).setOnClickListener(view -> {
             if (TerminalConfig.deviceToken(this).isBlank()) {
                 bindResult.setText("请先绑定至少一个号码。");
@@ -78,17 +120,33 @@ public final class MainActivity extends Activity {
 
         refreshPermissionsAndSims();
         if (!TerminalConfig.deviceToken(this).isBlank()) {
+            KeepAliveService.start(this);
             UploadScheduler.scheduleHeartbeat(this);
             UploadScheduler.scheduleImmediate(this);
         }
         renderAll();
+        repairDeviceTokenIfNeeded();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
+        KeepAliveService.start(this);
         refreshPermissionsAndSims();
         renderAll();
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        statusHandler.removeCallbacks(statusRefresh);
+        statusHandler.post(statusRefresh);
+    }
+
+    @Override
+    protected void onStop() {
+        statusHandler.removeCallbacks(statusRefresh);
+        super.onStop();
     }
 
     @Override
@@ -129,8 +187,8 @@ public final class MainActivity extends Activity {
             }
         }
         ArrayAdapter<SimResolver.Option> adapter = new ArrayAdapter<>(
-                this, android.R.layout.simple_spinner_item, simOptions);
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+                this, R.layout.spinner_item, simOptions);
+        adapter.setDropDownViewResource(R.layout.spinner_dropdown_item);
         simSpinner.setAdapter(adapter);
         for (int index = 0; index < simOptions.size(); index++) {
             if (simOptions.get(index).simSlot == selectedSlot) {
@@ -175,6 +233,7 @@ public final class MainActivity extends Activity {
                 TerminalConfig.replaceDeviceToken(this, result.deviceToken);
                 TerminalConfig.addBinding(
                         this, result.phoneNumber, option.simSlot, option.carrier, userKey);
+                KeepAliveService.start(this);
                 UploadScheduler.scheduleHeartbeat(this);
                 UploadScheduler.enqueueHeartbeat(this);
                 runOnUiThread(() -> {
@@ -188,6 +247,55 @@ public final class MainActivity extends Activity {
                 runOnUiThread(() -> {
                     bindResult.setText("绑定失败：" + message);
                     bindButton.setEnabled(allPermissionsGranted());
+                });
+            }
+        });
+    }
+
+    private void repairDeviceTokenIfNeeded() {
+        if (tokenRepairInProgress || !TerminalConfig.deviceToken(this).isBlank()) {
+            return;
+        }
+        TerminalConfig.Binding recoverable = null;
+        for (TerminalConfig.Binding binding : TerminalConfig.bindings(this)) {
+            if (binding.userKey != null && !binding.userKey.isBlank()) {
+                recoverable = binding;
+                break;
+            }
+        }
+        if (recoverable == null) {
+            return;
+        }
+        tokenRepairInProgress = true;
+        TerminalConfig.Binding binding = recoverable;
+        bindResult.setText("正在恢复终端连接…");
+        executor.execute(() -> {
+            try {
+                ApiClient.BindingResult result = ApiClient.bind(
+                        binding.userKey,
+                        TerminalConfig.deviceId(this),
+                        binding.simSlot);
+                TerminalConfig.replaceDeviceToken(this, result.deviceToken);
+                TerminalConfig.addBinding(
+                        this,
+                        result.phoneNumber.isBlank() ? binding.phoneNumber : result.phoneNumber,
+                        binding.simSlot,
+                        binding.carrier,
+                        binding.userKey);
+                KeepAliveService.start(this);
+                UploadScheduler.scheduleHeartbeat(this);
+                UploadScheduler.enqueueHeartbeat(this);
+                runOnUiThread(() -> {
+                    tokenRepairInProgress = false;
+                    bindResult.setText("终端连接已自动恢复。");
+                    renderAll();
+                });
+            } catch (Exception error) {
+                String message = error.getMessage() == null ? "恢复失败" : error.getMessage();
+                runOnUiThread(() -> {
+                    tokenRepairInProgress = false;
+                    bindResult.setText("终端连接恢复失败：" + message);
+                    renderStatus();
                 });
             }
         });
@@ -223,7 +331,7 @@ public final class MainActivity extends Activity {
             summary.append("SIM ").append(binding.simSlot)
                     .append("  ·  ").append(maskPhone(binding.phoneNumber));
             if (!binding.carrier.isBlank()) {
-                summary.append("  ·  ").append(binding.carrier);
+                summary.append("\n").append(binding.carrier);
             }
             TextView summaryView = bindingText(summary.toString(), 14);
             summaryView.setTextColor(getColor(R.color.muted));
@@ -240,10 +348,14 @@ public final class MainActivity extends Activity {
                 continue;
             }
 
-            TextView keyView = bindingText(binding.userKey, 12);
+            TextView keyView = bindingText(binding.userKey, 11);
             keyView.setTypeface(Typeface.MONOSPACE);
-            keyView.setTextColor(getColor(R.color.ink));
+            keyView.setTextColor(getColor(R.color.lime));
             keyView.setTextIsSelectable(true);
+            keyView.setBackgroundResource(R.drawable.key_background);
+            keyView.setPadding(dp(12), dp(10), dp(12), dp(10));
+            keyView.setBreakStrategy(LineBreaker.BREAK_STRATEGY_SIMPLE);
+            keyView.setHyphenationFrequency(Layout.HYPHENATION_FREQUENCY_NONE);
             LinearLayout.LayoutParams keyParams = new LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT);
@@ -255,7 +367,7 @@ public final class MainActivity extends Activity {
             inboxButton.setAllCaps(false);
             inboxButton.setTextColor(getColor(R.color.white));
             inboxButton.setTextSize(14);
-            inboxButton.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+            inboxButton.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
             inboxButton.setBackgroundResource(R.drawable.button_primary);
             inboxButton.setOnClickListener(view -> openInbox(binding.userKey));
             LinearLayout.LayoutParams buttonParams = new LinearLayout.LayoutParams(
@@ -269,6 +381,7 @@ public final class MainActivity extends Activity {
         TextView view = new TextView(this);
         view.setText(value);
         view.setTextSize(sizeSp);
+        view.setTypeface(Typeface.create("sans-serif", Typeface.NORMAL));
         view.setLineSpacing(0, 1.15f);
         return view;
     }
@@ -294,20 +407,146 @@ public final class MainActivity extends Activity {
         PowerManager power = getSystemService(PowerManager.class);
         boolean batteryExempt = power != null
                 && power.isIgnoringBatteryOptimizations(getPackageName());
-        String value = String.format(
-                Locale.ROOT,
-                "SERVER     %s\nDEVICE     %s\nTOKEN      %s\nNETWORK    %s\nQUEUE      %d"
-                        + "\nKEEPALIVE  ALARM 9 MIN\nBATTERY    %s\nLAST       %s",
-                TerminalConfig.API_BASE_URL,
-                TerminalConfig.deviceId(this),
-                TerminalConfig.deviceToken(this).isBlank() ? "NOT BOUND" : "SECURED",
-                EventPayloads.network(this),
-                database.count(),
-                batteryExempt ? "EXEMPT" : "RESTRICTED",
-                TerminalConfig.lastUpload(this));
-        statusText.setText(value);
+        statusContainer.removeAllViews();
+        addStatusRow("版本", BuildConfig.VERSION_NAME);
+        addStatusRow(
+                "连接",
+                String.format(
+                        Locale.ROOT,
+                        "%s · %s · 队列 %d",
+                        TerminalConfig.deviceToken(this).isBlank() ? "未绑定" : "已加密",
+                        EventPayloads.network(this),
+                        database.count()));
+        addStatusRow("保活", "每 9 分钟唤醒");
+        addStatusRow("电池", batteryExempt ? "已允许后台运行" : "受系统节能限制");
+        addStatusRow("最后心跳", TerminalConfig.lastUpload(this));
+        addStatusRow("设备", TerminalConfig.deviceId(this));
+        addStatusRow("服务器", Uri.parse(TerminalConfig.API_BASE_URL).getHost());
         keepAliveButton.setVisibility(batteryExempt ? View.GONE : View.VISIBLE);
         keepAliveButton.setEnabled(!TerminalConfig.deviceToken(this).isBlank());
+        renderHuaweiKeepAlive();
+    }
+
+    private void renderHuaweiKeepAlive() {
+        if (!isHuaweiDevice()) {
+            huaweiKeepAlivePanel.setVisibility(View.GONE);
+            return;
+        }
+        huaweiKeepAlivePanel.setVisibility(View.VISIBLE);
+        huaweiKeepAliveWarning.setTextColor(getColor(R.color.orange));
+        PowerManager power = getSystemService(PowerManager.class);
+        boolean batteryExempt = power != null
+                && power.isIgnoringBatteryOptimizations(getPackageName());
+        huaweiBatteryState.setText(batteryExempt
+                ? "电池优化：已放行 ✓"
+                : "电池优化：待放行（见终端状态）");
+
+        boolean manualConfirmed = huaweiAppLaunchConfirmed.isChecked()
+                && huaweiSleepNetworkConfirmed.isChecked();
+        if (TerminalConfig.deviceToken(this).isBlank()) {
+            huaweiKeepAliveWarning.setText("绑定后将自动验证锁屏心跳。");
+            return;
+        }
+        if (!batteryExempt || !manualConfirmed) {
+            huaweiKeepAliveWarning.setText("请完成并确认下面两项设置。");
+            return;
+        }
+        long lastSuccess = TerminalConfig.lastSuccessfulUploadAt(this);
+        if (lastSuccess <= 0L) {
+            huaweiKeepAliveWarning.setText("设置已确认，等待第一次成功心跳。");
+            return;
+        }
+        long offlineMinutes = Math.max(0L, (System.currentTimeMillis() - lastSuccess) / 60_000L);
+        if (offlineMinutes > 20L) {
+            huaweiKeepAliveWarning.setText(
+                    String.format(Locale.ROOT, "心跳中断 %d 分钟，请复查设置。", offlineMinutes));
+        } else {
+            huaweiKeepAliveWarning.setText("设置已确认，心跳正常 ✓");
+            huaweiKeepAliveWarning.setTextColor(getColor(R.color.green));
+        }
+    }
+
+    private boolean isHuaweiDevice() {
+        String manufacturer = Build.MANUFACTURER == null ? "" : Build.MANUFACTURER;
+        String brand = Build.BRAND == null ? "" : Build.BRAND;
+        return manufacturer.toLowerCase(Locale.ROOT).contains("huawei")
+                || brand.toLowerCase(Locale.ROOT).contains("huawei");
+    }
+
+    private void openHuaweiAppLaunchSettings() {
+        Intent[] candidates = {
+                componentIntent(
+                        "com.huawei.systemmanager",
+                        "com.huawei.systemmanager.startupmgr.ui.StartupNormalAppListActivity"),
+                componentIntent(
+                        "com.huawei.systemmanager",
+                        "com.huawei.systemmanager.appcontrol.activity.StartupAppControlActivity"),
+                new Intent(
+                        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        Uri.parse("package:" + getPackageName()))
+        };
+        if (!startFirstAvailable(candidates)) {
+            bindResult.setText("无法直接打开启动管理，请按页面路径在系统设置中操作。");
+        }
+    }
+
+    private void openHuaweiBatterySettings() {
+        Intent[] candidates = {
+                componentIntent(
+                        "com.huawei.systemmanager",
+                        "com.huawei.systemmanager.power.ui.HwPowerManagerActivity"),
+                new Intent(Settings.ACTION_BATTERY_SAVER_SETTINGS),
+                new Intent(Settings.ACTION_SETTINGS)
+        };
+        if (!startFirstAvailable(candidates)) {
+            bindResult.setText("无法直接打开电池设置，请按页面路径在系统设置中操作。");
+        }
+    }
+
+    private Intent componentIntent(String packageName, String className) {
+        return new Intent().setComponent(new ComponentName(packageName, className));
+    }
+
+    private boolean startFirstAvailable(Intent[] candidates) {
+        for (Intent candidate : candidates) {
+            try {
+                startActivity(candidate);
+                return true;
+            } catch (ActivityNotFoundException | SecurityException ignored) {
+                // Huawei changes private Settings activities between system versions.
+            }
+        }
+        return false;
+    }
+
+    private void addStatusRow(String label, String value) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setBaselineAligned(false);
+
+        TextView labelView = bindingText(label, 10);
+        labelView.setTextColor(getColor(R.color.green));
+        labelView.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+        labelView.setLetterSpacing(0.04f);
+        LinearLayout.LayoutParams labelParams = new LinearLayout.LayoutParams(
+                dp(72), LinearLayout.LayoutParams.WRAP_CONTENT);
+        row.addView(labelView, labelParams);
+
+        int valueSize = "最后心跳".equals(label) || "设备".equals(label) ? 11 : 12;
+        TextView valueView = bindingText(value == null ? "" : value, valueSize);
+        valueView.setTextColor(getColor(R.color.ink));
+        valueView.setTextIsSelectable(true);
+        valueView.setBreakStrategy(LineBreaker.BREAK_STRATEGY_SIMPLE);
+        valueView.setHyphenationFrequency(Layout.HYPHENATION_FREQUENCY_NONE);
+        LinearLayout.LayoutParams valueParams = new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+        row.addView(valueView, valueParams);
+
+        LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        rowParams.setMargins(0, 0, 0, dp(9));
+        statusContainer.addView(row, rowParams);
     }
 
     private void requestBatteryExemption() {

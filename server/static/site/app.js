@@ -1,5 +1,13 @@
 const statusNode = document.querySelector("#cloud-status");
 
+function attributionFor(landing) {
+  const parameters = new URLSearchParams(window.location.search);
+  return {
+    attribution_campaign: parameters.get("campaign") || parameters.get("cmp") || "",
+    attribution_landing: landing
+  };
+}
+
 function setCloudStatus(label, state) {
   const indicator = document.createElement("i");
   statusNode.className = `cloud-status ${state}`;
@@ -119,10 +127,11 @@ keyDialogForm?.addEventListener("submit", async (event) => {
   keyDialogSubmit.textContent = "正在提交…";
   try {
     const fields = new FormData(keyDialogForm);
+    const payload = { ...Object.fromEntries(fields), ...attributionFor("home") };
     const response = await fetch("/api/v1/key-requests", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(Object.fromEntries(fields))
+      body: JSON.stringify(payload)
     });
     const result = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(result.error || "提交失败，请稍后重试。");

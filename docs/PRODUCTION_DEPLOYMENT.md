@@ -10,7 +10,7 @@
 - 证书：acme.sh + Namecheap DNS-01，自动续期并 reload OpenResty
 - 数据：`/opt/sms-gateway/data/gateway.db`
 - 备份：每天 UTC 03:17 生成 SQLite 在线备份，保留 30 天
-- 当前版本：`0.8.0`，已启用首页弹框自动签发、人工激活码兜底、用户 Key 收件箱、Agent USB 自动配置、Android 绑定和 Agent Inbox/OTP API，并提供 VibeSMS Terminal v0.4.0 APK
+- 当前版本：`0.8.0`，已启用首页弹框自动签发、人工激活码兜底、用户 Key 收件箱、Agent USB 自动配置、Android 绑定和 Agent Inbox/OTP API，并提供 VibeSMS Terminal v0.4.9 APK
 
 常用操作：
 
@@ -23,8 +23,8 @@ curl https://sms.shareapi.ai/api/health
 
 Android Terminal 下载：
 
-- APK：<https://github.com/guanxiong/VibeSMS/releases/download/v0.4.0/VibeSMS-0.4.0.apk>
-- Release 与校验值：<https://github.com/guanxiong/VibeSMS/releases/tag/v0.4.0>
+- APK：<https://github.com/guanxiong/VibeSMS/releases/download/v0.4.9/VibeSMS-0.4.9.apk>
+- Release 与校验值：<https://github.com/guanxiong/VibeSMS/releases/tag/v0.4.9>
 - SHA-256：`1bdf1bf4a81120729124d5228c1ca4d09b6149f9f233e6b1472695965da19f36`
 
 发布私钥只保存在维护者机器。GitHub Actions 负责编译未签名 Release Candidate，本地使用官方 `apksigner` 完成签名后再上传 GitHub Release。
@@ -97,7 +97,11 @@ https://sms.shareapi.ai/api/v1/events
 
 ## Android 心跳与自动补发
 
-VibeSMS Terminal 同时使用约 9 分钟一次的 `AlarmManager.setAndAllowWhileIdle` 锁屏心跳和 15 分钟 `JobScheduler` 兜底。锁屏心跳只在 HTTPS 请求期间持有最长 45 秒的 WakeLock；绑定页面会显示电池优化豁免状态，并提供“允许锁屏保活”入口。通过 ADB 自动配置时，脚本会尝试把应用加入设备 Doze allowlist。华为等厂商系统仍应在“应用启动管理”中允许自启动、关联启动和后台活动。
+VibeSMS Terminal 同时使用约 9 分钟一次的 `AlarmManager.setAndAllowWhileIdle` 锁屏心跳和 15 分钟 `JobScheduler` 兜底。锁屏心跳只在 HTTPS 请求期间持有最长 45 秒的 WakeLock；绑定页面会显示电池优化豁免状态，并提供“允许锁屏保活”入口。通过 ADB 自动配置时，脚本会尝试把应用加入设备 Doze allowlist。
+
+华为等厂商系统还需要人工放行厂商级后台策略：进入“设置 → 应用 → 应用启动管理 → VibeSMS”，关闭“自动管理”，并打开“允许自启动、允许关联启动、允许后台活动”。同时将电池优化设为“不允许优化”；再进入“设置 → 电池 → 更多电池设置”，开启“休眠时始终保持网络连接”。菜单名称可能因 EMUI 版本略有不同；固定终端保持供电更稳定。
+
+从 Android Terminal 0.4.9 起，华为设备会显示锁屏保活检查卡片：电池优化状态由 APK 自动检测；应用启动管理与休眠联网设置提供系统页跳转并由用户手动确认。如果连续超过 20 分钟没有成功心跳，卡片会提示重新检查这两项厂商设置。
 
 SmsForwarder 3.5.0 可用“自动任务”组合实现可靠性补强：
 

@@ -32,6 +32,9 @@ UNKNOWN_CALL_TYPES = {"", "0", "unknown", "unknown call", "未知", "未知通�
 USER_KEY_PREFIX = "vbs_live_"
 ACTIVATION_CODE_PREFIX = "vba_"
 REQUEST_EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+ATTRIBUTION_VALUE_PATTERN = re.compile(r"[a-z0-9][a-z0-9._-]{0,63}")
+CAMPAIGN_SOURCES = {"v2ex", "x", "github", "skills-sh", "hacker-news", "reddit", "wechat", "other"}
+CAMPAIGN_LANDINGS = {"home", "apply"}
 
 
 class ConflictError(ValueError):
@@ -76,6 +79,15 @@ def normalize_phone_number(value: Any) -> str:
     if not re.fullmatch(r"\+?[0-9]{5,20}", phone_number):
         raise ValueError("phone_number must contain 5 to 20 digits with an optional leading +")
     return phone_number
+
+
+def normalize_attribution(value: Any, allowed: set[str], fallback: str) -> str:
+    normalized = clean_text(value, 64).lower()
+    if not normalized:
+        return fallback
+    if not ATTRIBUTION_VALUE_PATTERN.fullmatch(normalized) or normalized not in allowed:
+        return fallback
+    return normalized
 
 
 def extract_otp(content: str) -> str:
@@ -271,10 +283,34 @@ class GatewayStore:
             status TEXT NOT NULL DEFAULT 'pending',
             activation_id TEXT NOT NULL DEFAULT '',
             key_id TEXT NOT NULL DEFAULT '',
+            attribution_source TEXT NOT NULL DEFAULT 'direct',
+            attribution_campaign TEXT NOT NULL DEFAULT 'none',
+            attribution_landing TEXT NOT NULL DEFAULT 'apply',
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL
         );
         CREATE INDEX IF NOT EXISTS idx_key_requests_status ON key_requests(status, created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_key_requests_attribution
+            ON key_requests(attribution_source, attribution_campaign, created_at DESC);
+        CREATE TABLE IF NOT EXISTS campaigns (
+            campaign_id TEXT PRIMARY KEY,
+            code TEXT NOT NULL UNIQUE,
+            name TEXT NOT NULL,
+            source TEXT NOT NULL,
+            landing TEXT NOT NULL,
+            enabled INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            CHECK (landing IN ('home', 'apply'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_campaigns_enabled ON campaigns(enabled, created_at DESC);
+        CREATE TABLE IF NOT EXISTS key_milestones (
+            key_id TEXT PRIMARY KEY,
+            bound_at TEXT NOT NULL DEFAULT '',
+            first_heartbeat_at TEXT NOT NULL DEFAULT '',
+            first_event_at TEXT NOT NULL DEFAULT '',
+            FOREIGN KEY(key_id) REFERENCES user_keys(key_id)
+        );
         CREATE TABLE IF NOT EXISTS activation_codes (
             activation_id TEXT PRIMARY KEY,
             request_id TEXT NOT NULL DEFAULT '',
@@ -303,6 +339,9 @@ class GatewayStore:
             self._ensure_column(connection, "devices", "last_heartbeat", "TEXT NOT NULL DEFAULT ''")
             self._ensure_column(connection, "key_requests", "phone_number", "TEXT NOT NULL DEFAULT ''")
             self._ensure_column(connection, "key_requests", "key_id", "TEXT NOT NULL DEFAULT ''")
+            self._ensure_column(connection, "key_requests", "attribution_source", "TEXT NOT NULL DEFAULT 'direct'")
+            self._ensure_column(connection, "key_requests", "attribution_campaign", "TEXT NOT NULL DEFAULT 'none'")
+            self._ensure_column(connection, "key_requests", "attribution_landing", "TEXT NOT NULL DEFAULT 'apply'")
             connection.execute("UPDATE devices SET first_seen = last_seen WHERE first_seen = ''")
             connection.execute(
                 """INSERT OR IGNORE INTO onboarding_settings (
@@ -397,8 +436,83 @@ class GatewayStore:
         return "vr_" + secrets.token_hex(8)
 
     @staticmethod
+    def _new_campaign_id() -> str:
+        return "vc_" + secrets.token_hex(8)
+
+    @staticmethod
     def _new_activation_code() -> str:
         return ACTIVATION_CODE_PREFIX + secrets.token_urlsafe(24)
+
+    def create_campaign(self, name: str, code: str, source: str, landing: str) -> Dict[str, Any]:
+        name = clean_text(name, 128)
+        code = clean_text(code, 64).lower()
+        source = normalize_attribution(source, CAMPAIGN_SOURCES, "")
+        landing = normalize_attribution(landing, CAMPAIGN_LANDINGS, "")
+        if not name:
+            raise ValueError("campaign name is required")
+        if not ATTRIBUTION_VALUE_PATTERN.fullmatch(code):
+            raise ValueError("campaign code must use lowercase letters, numbers, dots, underscores, or hyphens")
+        if not source:
+            raise ValueError("campaign source is invalid")
+        if not landing:
+            raise ValueError("campaign landing must be home or apply")
+        campaign = {
+            "campaign_id": self._new_campaign_id(), "code": code, "name": name,
+            "source": source, "landing": landing, "enabled": True,
+            "created_at": utc_now(), "updated_at": utc_now(),
+        }
+        try:
+            with self._lock, self._connect() as connection:
+                connection.execute(
+                    """INSERT INTO campaigns (
+                        campaign_id, code, name, source, landing, enabled, created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, 1, ?, ?)""",
+                    (
+                        campaign["campaign_id"], campaign["code"], campaign["name"],
+                        campaign["source"], campaign["landing"], campaign["created_at"],
+                        campaign["updated_at"],
+                    ),
+                )
+        except sqlite3.IntegrityError as exc:
+            raise ConflictError("campaign code already exists") from exc
+        return campaign
+
+    def list_campaigns(self) -> List[Dict[str, Any]]:
+        with self._lock, self._connect() as connection:
+            rows = connection.execute(
+                """SELECT campaign_id, code, name, source, landing, enabled, created_at, updated_at
+                   FROM campaigns ORDER BY created_at DESC"""
+            ).fetchall()
+        campaigns = []
+        for row in rows:
+            campaign = dict(row)
+            campaign["enabled"] = bool(campaign["enabled"])
+            campaigns.append(campaign)
+        return campaigns
+
+    def set_campaign_enabled(self, campaign_id: str, enabled: bool) -> None:
+        with self._lock, self._connect() as connection:
+            cursor = connection.execute(
+                """UPDATE campaigns SET enabled = ?, updated_at = ? WHERE campaign_id = ?""",
+                (1 if enabled else 0, utc_now(), clean_text(campaign_id, 64)),
+            )
+            if cursor.rowcount != 1:
+                raise ValueError("campaign not found")
+
+    def resolve_campaign(self, code: Any, landing: Any) -> Tuple[str, str, str]:
+        code = clean_text(code, 64).lower()
+        landing = normalize_attribution(landing, CAMPAIGN_LANDINGS, "apply")
+        if not code or not ATTRIBUTION_VALUE_PATTERN.fullmatch(code):
+            return "direct", "none", landing
+        with self._lock, self._connect() as connection:
+            row = connection.execute(
+                """SELECT code, source, landing FROM campaigns
+                   WHERE code = ? AND enabled = 1""",
+                (code,),
+            ).fetchone()
+        if not row or row["landing"] != landing:
+            return "direct", "none", landing
+        return row["source"], row["code"], row["landing"]
 
     def submit_key_request(
         self,
@@ -407,6 +521,8 @@ class GatewayStore:
         device_count: str,
         contact: str = "",
         phone_number: str = "",
+        attribution_campaign: str = "",
+        attribution_landing: str = "apply",
     ) -> Dict[str, Any]:
         email = clean_text(email, 254).lower()
         use_case = clean_text(use_case, 600)
@@ -419,6 +535,9 @@ class GatewayStore:
         if device_count not in {"1", "2-5", "6+"}:
             raise ValueError("device_count must be 1, 2-5, or 6+")
         phone_number = normalize_phone_number(phone_number)
+        attribution_source, attribution_campaign, attribution_landing = self.resolve_campaign(
+            attribution_campaign, attribution_landing
+        )
         now_dt = datetime.now(timezone.utc)
         now = now_dt.isoformat(timespec="seconds")
         recent_threshold = (now_dt - timedelta(days=1)).isoformat(timespec="seconds")
@@ -453,8 +572,9 @@ class GatewayStore:
             connection.execute(
                 """INSERT INTO key_requests (
                     request_id, email, phone_number, contact, use_case, device_count, status,
-                    activation_id, key_id, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, '', ?, ?, ?)""",
+                    activation_id, key_id, attribution_source, attribution_campaign,
+                    attribution_landing, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?)""",
                 (
                     request_id,
                     email,
@@ -464,6 +584,9 @@ class GatewayStore:
                     device_count,
                     status,
                     key_id,
+                    attribution_source,
+                    attribution_campaign,
+                    attribution_landing,
                     now,
                     now,
                 ),
@@ -539,7 +662,8 @@ class GatewayStore:
         with self._lock, self._connect() as connection:
             rows = connection.execute(
                 """SELECT request_id, email, phone_number, contact, use_case, device_count, status,
-                          activation_id, key_id, created_at, updated_at
+                          activation_id, key_id, attribution_source, attribution_campaign,
+                          attribution_landing, created_at, updated_at
                    FROM key_requests ORDER BY created_at DESC"""
             ).fetchall()
         return [dict(row) for row in rows]
@@ -658,6 +782,13 @@ class GatewayStore:
                    WHERE activation_id = ?""",
                 (now, phone_number, key_id, now, row["activation_id"]),
             )
+            if row["request_id"]:
+                connection.execute(
+                    """UPDATE key_requests
+                       SET status = 'redeemed', key_id = ?, updated_at = ?
+                       WHERE request_id = ?""",
+                    (key_id, now, row["request_id"]),
+                )
         return key_id, token, row["label"]
 
     def issue_user_key(
@@ -800,6 +931,14 @@ class GatewayStore:
                        WHERE key_id = ?""",
                     (device_id, sim_slot, now, row["key_id"]),
                 )
+                connection.execute(
+                    """INSERT INTO key_milestones (key_id, bound_at)
+                       VALUES (?, ?)
+                       ON CONFLICT(key_id) DO UPDATE SET
+                         bound_at = CASE WHEN key_milestones.bound_at = ''
+                                         THEN excluded.bound_at ELSE key_milestones.bound_at END""",
+                    (row["key_id"], now),
+                )
             device_token = secrets.token_urlsafe(32)
             connection.execute(
                 """INSERT INTO device_credentials (
@@ -865,6 +1004,18 @@ class GatewayStore:
                     event["event_type"], event["sender"],
                 ),
             )
+            if inserted and event["sim_slot"] in (1, 2):
+                key_row = connection.execute(
+                    """SELECT key_id FROM user_keys
+                       WHERE enabled = 1 AND device_id = ? AND sim_slot = ?""",
+                    (event["device_id"], event["sim_slot"]),
+                ).fetchone()
+                if key_row:
+                    connection.execute(
+                        """UPDATE key_milestones SET first_event_at = ?
+                           WHERE key_id = ? AND bound_at != '' AND first_event_at = ''""",
+                        (created_at, key_row["key_id"]),
+                    )
         return inserted, event["event_id"]
 
     def record_heartbeat(self, payload: Dict[str, Any]) -> str:
@@ -893,6 +1044,18 @@ class GatewayStore:
                     sim_label=CASE WHEN excluded.sim_label != '' THEN excluded.sim_label ELSE devices.sim_label END""",
                 (device_id, now, now, now, app_version, battery, network_type, sim_slot, sim_label),
             )
+            if sim_slot in (1, 2):
+                key_row = connection.execute(
+                    """SELECT key_id FROM user_keys
+                       WHERE enabled = 1 AND device_id = ? AND sim_slot = ?""",
+                    (device_id, sim_slot),
+                ).fetchone()
+                if key_row:
+                    connection.execute(
+                        """UPDATE key_milestones SET first_heartbeat_at = ?
+                           WHERE key_id = ? AND bound_at != '' AND first_heartbeat_at = ''""",
+                        (now, key_row["key_id"]),
+                    )
         return now
 
     def list_events(self, limit: int = 100, event_type: str = "", device_id: str = "") -> List[Dict[str, Any]]:
@@ -1019,6 +1182,40 @@ class GatewayStore:
             ).fetchall()
             device_count = connection.execute("SELECT COUNT(*) FROM devices").fetchone()[0]
         return {"devices": device_count, "events": {row["event_type"]: row["count"] for row in counts}}
+
+    def acquisition_funnel(self) -> Dict[str, Any]:
+        """Return coarse, first-party acquisition milestones without event content or identifiers."""
+        with self._lock, self._connect() as connection:
+            rows = connection.execute(
+                """SELECT r.attribution_source AS source, r.attribution_campaign AS campaign,
+                          COUNT(*) AS requested,
+                          SUM(CASE WHEN r.key_id != '' THEN 1 ELSE 0 END) AS issued,
+                          SUM(CASE WHEN m.bound_at != '' THEN 1 ELSE 0 END) AS bound,
+                          SUM(CASE WHEN m.first_heartbeat_at != ''
+                                   AND julianday(m.first_heartbeat_at) <= julianday(m.bound_at) + 1
+                                   THEN 1 ELSE 0 END) AS heartbeat_24h,
+                          SUM(CASE WHEN m.first_event_at != ''
+                                   AND julianday(m.first_event_at) <= julianday(m.bound_at) + 1
+                                   THEN 1 ELSE 0 END) AS first_event_24h
+                   FROM key_requests r
+                   LEFT JOIN key_milestones m ON m.key_id = r.key_id
+                   GROUP BY r.attribution_source, r.attribution_campaign
+                   ORDER BY requested DESC, source ASC, campaign ASC"""
+            ).fetchall()
+        channels = [
+            {
+                "source": row["source"], "campaign": row["campaign"],
+                "requested": int(row["requested"] or 0), "issued": int(row["issued"] or 0),
+                "bound": int(row["bound"] or 0), "heartbeat_24h": int(row["heartbeat_24h"] or 0),
+                "first_event_24h": int(row["first_event_24h"] or 0),
+            }
+            for row in rows
+        ]
+        totals = {"requested": 0, "issued": 0, "bound": 0, "heartbeat_24h": 0, "first_event_24h": 0}
+        for channel in channels:
+            for key in totals:
+                totals[key] += channel[key]
+        return {"totals": totals, "channels": channels}
 
 
 class GatewayRequestHandler(BaseHTTPRequestHandler):
@@ -1150,6 +1347,8 @@ class GatewayRequestHandler(BaseHTTPRequestHandler):
                     payload.get("device_count"),
                     payload.get("contact"),
                     payload.get("phone_number"),
+                    payload.get("attribution_campaign"),
+                    payload.get("attribution_landing"),
                 )
             except ConflictError as exc:
                 self._json(HTTPStatus.CONFLICT, {"ok": False, "error": str(exc)})
@@ -1307,6 +1506,30 @@ class GatewayRequestHandler(BaseHTTPRequestHandler):
                 self._json(HTTPStatus.BAD_REQUEST, {"ok": False, "error": str(exc)})
                 return
             self._json(HTTPStatus.OK, {"ok": True, **settings})
+            return
+
+        campaign_match = re.fullmatch(r"/api/v1/admin/campaigns(?:/([^/]+)/(enable|disable))?", path)
+        if campaign_match:
+            if not self._admin_authorized():
+                self._admin_unauthorized()
+                return
+            try:
+                payload = self._read_json()
+                campaign_id, action = campaign_match.groups()
+                if action:
+                    self.gateway_server.store.set_campaign_enabled(campaign_id, action == "enable")
+                    self._json(HTTPStatus.OK, {"ok": True, "campaign_id": campaign_id, "action": action})
+                    return
+                campaign = self.gateway_server.store.create_campaign(
+                    payload.get("name"), payload.get("code"), payload.get("source"), payload.get("landing")
+                )
+            except ConflictError as exc:
+                self._json(HTTPStatus.CONFLICT, {"ok": False, "error": str(exc)})
+                return
+            except (ValueError, TypeError) as exc:
+                self._json(HTTPStatus.BAD_REQUEST, {"ok": False, "error": str(exc)})
+                return
+            self._json(HTTPStatus.CREATED, {"ok": True, "campaign": campaign})
             return
 
         if path == "/api/v1/admin/devices" or (
@@ -1525,6 +1748,18 @@ class GatewayRequestHandler(BaseHTTPRequestHandler):
                 {"ok": True, **self.gateway_server.store.get_onboarding_settings()},
             )
             return
+        if path == "/api/v1/admin/campaigns":
+            self._json(
+                HTTPStatus.OK,
+                {"ok": True, "campaigns": self.gateway_server.store.list_campaigns()},
+            )
+            return
+        if path == "/api/v1/admin/acquisition-funnel":
+            self._json(
+                HTTPStatus.OK,
+                {"ok": True, **self.gateway_server.store.acquisition_funnel()},
+            )
+            return
         if self._serve_static(path, public=False):
             return
         self._json(HTTPStatus.NOT_FOUND, {"ok": False, "error": "not found"})
@@ -1536,6 +1771,8 @@ class GatewayRequestHandler(BaseHTTPRequestHandler):
                 "/site/app.js": ("site/app.js", "text/javascript; charset=utf-8"),
                 "/site/styles.css": ("site/styles.css", "text/css; charset=utf-8"),
                 "/site/og-vibesms.jpg": ("site/og-vibesms.jpg", "image/jpeg"),
+                "/privacy": ("privacy/index.html", "text/html; charset=utf-8"),
+                "/privacy/": ("privacy/index.html", "text/html; charset=utf-8"),
                 "/inbox": ("inbox/index.html", "text/html; charset=utf-8"),
                 "/inbox/": ("inbox/index.html", "text/html; charset=utf-8"),
                 "/inbox/app.js": ("inbox/app.js", "text/javascript; charset=utf-8"),

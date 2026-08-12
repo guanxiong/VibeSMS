@@ -4,7 +4,6 @@ import android.app.job.JobParameters;
 import android.app.job.JobService;
 
 import java.io.IOException;
-import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -44,7 +43,7 @@ public final class UploadJobService extends JobService {
                         "/api/v1/devices/heartbeat",
                         EventPayloads.heartbeat(this).toString(),
                         token);
-                TerminalConfig.recordUpload(this, "心跳成功 · " + Instant.now());
+                TerminalConfig.recordUpload(this, "心跳成功");
             } catch (IOException error) {
                 TerminalConfig.recordUpload(this, "心跳失败 · " + safe(error.getMessage()));
                 retry = true;
@@ -57,7 +56,7 @@ public final class UploadJobService extends JobService {
             try {
                 ApiClient.upload(item.path, item.payload, token);
                 database.markSent(item.id);
-                TerminalConfig.recordUpload(this, "事件上传成功 · " + Instant.now());
+                TerminalConfig.recordUpload(this, "事件上传成功");
             } catch (IOException error) {
                 database.markFailed(item, safe(error.getMessage()));
                 TerminalConfig.recordUpload(this, "上传失败 · " + safe(error.getMessage()));

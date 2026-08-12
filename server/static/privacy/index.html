@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="VibeSMS Public Beta 的数据与隐私说明。">
+    <meta name="theme-color" content="#f3f1e9">
+    <title>数据与隐私说明 · VibeSMS</title>
+    <link rel="stylesheet" href="/site/styles.css">
+  </head>
+  <body class="legal-page">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="VibeSMS 首页"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span><span>VibeSMS</span></a>
+      <nav aria-label="辅助导航"><a href="/apply/">申请测试 Key</a><a href="https://github.com/guanxiong/VibeSMS">GitHub</a></nav>
+      <a class="console-link" href="/inbox/">Key 收件箱 <span aria-hidden="true">↗</span></a>
+    </header>
+    <main>
+      <article class="legal-content">
+        <header class="legal-header">
+          <p class="section-index">PUBLIC BETA / DATA NOTICE</p>
+          <h1>数据与隐私说明</h1>
+          <p>生效日期：2026 年 8 月 12 日。VibeSMS 是一个仍在迭代中的 Public Beta；本页用清晰、可核验的语言说明当前服务处理什么数据，以及你在申请前应当知道什么。</p>
+        </header>
+
+        <section>
+          <h2>使用边界</h2>
+          <p>仅连接你拥有或明确获授权管理的 Android 手机与 SIM。VibeSMS 不提供公共或共享号码池，不用于批量注册、转售、绕过第三方服务的规则或任何未经授权的访问。</p>
+        </section>
+
+        <section>
+          <h2>服务会处理的数据</h2>
+          <ul>
+            <li><strong>申请信息：</strong>邮箱、要绑定的手机号、用途、预计终端数，以及你选择提供的联系方式。</li>
+            <li><strong>终端与事件信息：</strong>设备标识、SIM 卡槽及标签、应用版本、电量、网络类型、心跳时间、来电号码，以及短信的发送方、正文和接收时间。</li>
+            <li><strong>访问凭据：</strong>用户 Key、设备上传凭据和激活码的哈希值。真实 Key 与设备凭据只在签发或绑定时显示一次；服务端不以明文保存它们。</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>数据如何被使用与存放</h2>
+          <p>数据用于签发和管理 Key、将事件按已绑定的设备与 SIM 隔离、向对应 Key 的 Agent 或收件箱提供读取能力，以及维护终端在线状态和安全审计。当前服务把这些数据保存在部署实例的 SQLite 数据库中。</p>
+          <p>当前版本<strong>不会自动删除</strong>短信事件、申请记录或设备记录，也没有面向用户的自助删除界面。请只接入你接受由该部署实例处理的号码；不要通过申请表发送短信正文、验证码或其他凭据。</p>
+        </section>
+
+        <section>
+          <h2>访问控制与安全</h2>
+          <p>一个用户 Key 仅可读取其绑定号码、设备与 SIM 卡槽的事件。Android 终端使用独立的上传凭据，不能读取收件箱。管理认证可查看运维所需的记录，因此服务管理员可能接触存储的事件内容。Key 泄露时，请立即在管理端轮换或禁用，或联系部署运营者处理。</p>
+        </section>
+
+        <section>
+          <h2>浏览器与第三方</h2>
+          <p>当前公开站点不加载广告、统计像素或第三方分析脚本。推广链接中的 <code>campaign</code> 仅在你提交测试 Key 申请时，作为后台预先创建的活动标签写入申请记录；服务不会存储完整 URL、IP、User-Agent 或浏览器指纹。Key 收件箱会将你主动输入或通过 URL 片段导入的 Key 临时放在当前浏览器标签页的 <code>sessionStorage</code>；关闭该标签页后会清除。该 Key 不会被放入页面 URL 查询参数发送给服务端。</p>
+        </section>
+
+        <section>
+          <h2>问题、数据请求与变更</h2>
+          <p>本项目仍处于 Beta，数据删除、导出和保留周期尚未产品化。若需要处理已提交的申请信息、绑定或存储事件，请通过项目的 <a href="https://github.com/guanxiong/VibeSMS/issues">GitHub Issues</a> 联系维护者；请勿在公开 Issue 中附上 Key、手机号、短信正文或验证码。安全问题请遵循 <a href="https://github.com/guanxiong/VibeSMS/blob/main/SECURITY.md">Security Policy</a> 的私密报告方式。</p>
+          <p>服务能力或数据处理方式发生实质变更时，本页会更新生效日期。本说明是当前 Beta 的产品说明，不替代适用法律下可能需要的正式隐私政策或用户协议。</p>
+        </section>
+
+        <div class="legal-actions"><a class="button primary" href="/apply/">我了解，申请测试 Key <span aria-hidden="true">→</span></a><a class="step-action" href="/">返回首页 <span aria-hidden="true">→</span></a></div>
+      </article>
+    </main>
+    <footer><a class="brand footer-brand" href="/"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span><span>VibeSMS</span></a><p>Android SMS infrastructure for agents.</p><div><a href="https://github.com/guanxiong/VibeSMS">GitHub</a><a href="https://github.com/guanxiong/VibeSMS/blob/main/SECURITY.md">Security</a></div></footer>
+  </body>
+</html>

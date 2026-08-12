@@ -10,6 +10,7 @@ public final class BootReceiver extends BroadcastReceiver {
         if (TerminalConfig.deviceToken(context).isBlank()) {
             return;
         }
+        KeepAliveService.start(context);
         UploadScheduler.scheduleHeartbeat(context);
         UploadScheduler.scheduleImmediate(context);
     }

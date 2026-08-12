@@ -1,0 +1,37 @@
+VibeSMS Service Commercial License
+
+Copyright (c) 2026 guanxiong. All rights reserved.
+
+This repository contains software made available under different licenses. The
+following directories, including all files within them unless a file expressly
+states otherwise, are licensed under the Apache License, Version 2.0:
+
+  - android/
+  - skills/vibesms/
+
+The complete Apache License, Version 2.0 is available at
+licenses/Apache-2.0.txt. The applicable directory also contains a LICENSE file.
+
+All other source code, configuration, documentation, static assets, build and
+deployment material in this repository (including, without limitation,
+server/, deploy/, bin/, Dockerfile, compose.yaml, and root-level configuration)
+is proprietary software (the "Service Software").
+
+Subject to the Apache-2.0 exceptions above, no license, whether express or
+implied, is granted to use, copy, modify, merge, publish, distribute,
+sublicense, sell, provide access to, host, or otherwise exploit the Service
+Software. You may inspect the Service Software only for evaluation and
+interoperability with the publicly licensed Android Terminal or VibeSMS Agent
+Skill. Any production use, distribution, modification, derivative work,
+hosting, or offering of the Service Software requires a separate written
+commercial license from the copyright holder.
+
+The Service Software is provided "AS IS", without warranty of any kind,
+express or implied, including warranties of merchantability, fitness for a
+particular purpose, and non-infringement. In no event shall the copyright holder
+be liable for any claim, damages, or other liability arising from or in
+connection with the Service Software or its use.
+
+For commercial licensing, contact the repository maintainer through the
+repository's private contact channel. Do not include credentials, phone
+numbers, SMS bodies, or other sensitive information in a public inquiry.

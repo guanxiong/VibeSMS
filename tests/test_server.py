@@ -65,7 +65,7 @@ class GatewayServerTest(unittest.TestCase):
             homepage = response.read().decode("utf-8")
         self.assertIn("让你的 Agent", homepage)
         self.assertIn('href="/admin/"', homepage)
-        self.assertIn("VibeSMS-0.4.0.apk", homepage)
+        self.assertIn("VibeSMS-0.4.9.apk", homepage)
         self.assertIn('class="keep-together">“短信列表”，</span>', homepage)
         self.assertIn('class="keep-together">号码</span>', homepage)
         self.assertIn('class="keep-together">手机短信。</span>', homepage)
@@ -77,7 +77,13 @@ class GatewayServerTest(unittest.TestCase):
         self.assertIn("gh skill install guanxiong/VibeSMS", homepage)
         self.assertIn('id="skill"', homepage)
         self.assertIn('href="/inbox/"', homepage)
+        self.assertIn('href="/privacy/"', homepage)
+        self.assertIn("PUBLIC BETA / NOW OPEN", homepage)
         self.assertIn("申请测试 Key", homepage)
+        self.assertIn("允许自启动、允许关联启动、允许后台活动", homepage)
+        self.assertIn("设置 → 电池 → 更多电池设置", homepage)
+        self.assertIn("休眠时始终保持网络连接", homepage)
+        self.assertIn('class="keepalive-guide"', homepage)
         self.assertIn('id="key-dialog"', homepage)
         self.assertIn("data-open-key-dialog", homepage)
         self.assertIn("data-copy-dialog-prompt", homepage)
@@ -98,6 +104,12 @@ class GatewayServerTest(unittest.TestCase):
             self.assertEqual(response.status, 200)
             self.assertEqual(response.headers.get_content_type(), "text/html")
             self.assertEqual(response.read(), b"")
+
+        with urlopen(self.base_url + "/privacy/", timeout=3) as response:
+            self.assertEqual(response.status, 200)
+            privacy = response.read().decode("utf-8")
+        self.assertIn("数据与隐私说明", privacy)
+        self.assertIn("不会自动删除", privacy)
 
     def test_public_key_inbox_page_does_not_require_admin_auth(self):
         for path, expected in (
@@ -210,6 +222,9 @@ class GatewayServerTest(unittest.TestCase):
         _, activation_codes = self.request("/api/v1/admin/activation-codes", admin=True)
         self.assertEqual(activation_codes["activation_codes"][0]["status"], "redeemed")
         self.assertEqual(activation_codes["activation_codes"][0]["key_id"], redeemed["key_id"])
+        _, requests = self.request("/api/v1/admin/key-requests", admin=True)
+        self.assertEqual(requests["requests"][0]["status"], "redeemed")
+        self.assertEqual(requests["requests"][0]["key_id"], redeemed["key_id"])
 
     def test_admin_quota_enables_atomic_frontend_key_issuance(self):
         _, public_status = self.request("/api/v1/onboarding/status")
@@ -337,6 +352,13 @@ class GatewayServerTest(unittest.TestCase):
         with self.assertRaises(HTTPError) as raised:
             urlopen(self.base_url + "/api/v1/admin/keys", timeout=3)
         self.assertEqual(raised.exception.code, 401)
+        with self.assertRaises(HTTPError) as raised:
+            urlopen(self.base_url + "/api/v1/admin/campaigns", timeout=3)
+        self.assertEqual(raised.exception.code, 401)
+
+        root = Path(__file__).resolve().parents[1] / "server" / "static" / "admin"
+        self.assertIn('id="campaign-form"', (root / "index.html").read_text(encoding="utf-8"))
+        self.assertIn("/api/v1/admin/campaigns", (root / "app.js").read_text(encoding="utf-8"))
 
     def test_admin_sim_slot_only_activates_for_prebinding(self):
         root = Path(__file__).resolve().parents[1] / "server" / "static" / "admin"
@@ -350,6 +372,89 @@ class GatewayServerTest(unittest.TestCase):
         self.assertIn(".key-form .sim-field", css)
         self.assertIn("function syncSimSlotState()", javascript)
         self.assertIn("simSelect.disabled = !hasPreboundDevice", javascript)
+
+    def test_first_party_attribution_funnel_tracks_only_service_milestones(self):
+        status, campaign = self.request(
+            "/api/v1/admin/campaigns",
+            "POST",
+            {
+                "name": "V2EX Public Beta", "code": "public-beta-202608",
+                "source": "v2ex", "landing": "apply",
+            },
+            admin=True,
+        )
+        self.assertEqual(status, 201)
+        self.assertEqual(campaign["campaign"]["source"], "v2ex")
+        self.request(
+            "/api/v1/admin/onboarding-settings",
+            "POST",
+            {"auto_issue_enabled": True, "auto_issue_quota": 1},
+            admin=True,
+        )
+        _, issued = self.request(
+            "/api/v1/key-requests",
+            "POST",
+            {
+                "email": "funnel@example.com",
+                "phone_number": "+8613900099901",
+                "use_case": "Use my own SIM with an Agent.",
+                "device_count": "1",
+                "attribution_campaign": "public-beta-202608",
+                "attribution_landing": "apply",
+            },
+        )
+        self.assertEqual(issued["status"], "auto_issued")
+        _, binding = self.request(
+            "/api/v1/bindings",
+            "POST",
+            {"device_id": "FUNNEL-01", "sim_slot": 1},
+            user_token=issued["key"],
+        )
+        self.request(
+            "/api/v1/devices/heartbeat",
+            "POST",
+            {"device_id": "FUNNEL-01", "sim_slot": 1, "network": "WIFI"},
+            token=binding["device_token"],
+        )
+        self.request(
+            "/api/v1/events",
+            "POST",
+            {
+                "device_id": "FUNNEL-01", "sim_slot": 1, "event_type": "sms",
+                "sender": "Example", "content": "Your verification code is 472913",
+            },
+            token=binding["device_token"],
+        )
+        _, funnel = self.request("/api/v1/admin/acquisition-funnel", admin=True)
+        self.assertEqual(funnel["totals"], {
+            "requested": 1, "issued": 1, "bound": 1,
+            "heartbeat_24h": 1, "first_event_24h": 1,
+        })
+        self.assertEqual(funnel["channels"], [{
+            "source": "v2ex", "campaign": "public-beta-202608", "requested": 1,
+            "issued": 1, "bound": 1, "heartbeat_24h": 1, "first_event_24h": 1,
+        }])
+        self.assertNotIn("content", funnel)
+        self.assertNotIn("phone_number", funnel)
+
+        _, campaigns = self.request("/api/v1/admin/campaigns", admin=True)
+        self.assertEqual(campaigns["campaigns"][0]["code"], "public-beta-202608")
+        self.assertTrue(campaigns["campaigns"][0]["enabled"])
+        self.request(
+            "/api/v1/admin/campaigns/%s/disable" % campaign["campaign"]["campaign_id"],
+            "POST",
+            {},
+            admin=True,
+        )
+        _, campaigns = self.request("/api/v1/admin/campaigns", admin=True)
+        self.assertFalse(campaigns["campaigns"][0]["enabled"])
+
+        apply_script = (
+            Path(__file__).resolve().parents[1] / "server" / "static" / "apply" / "app.js"
+        ).read_text(encoding="utf-8")
+        self.assertIn("URLSearchParams", apply_script)
+        self.assertIn("attribution_campaign", apply_script)
+        self.assertNotIn("navigator.userAgent", apply_script)
 
     def test_unknown_public_path_is_not_an_auth_prompt(self):
         with self.assertRaises(HTTPError) as raised:

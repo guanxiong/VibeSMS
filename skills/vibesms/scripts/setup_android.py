@@ -17,7 +17,7 @@ from urllib.request import urlopen
 from vibesms import config, request_json
 
 
-RELEASE_VERSION = "0.4.0"
+RELEASE_VERSION = "0.4.9"
 RELEASE_BASE = "https://github.com/guanxiong/VibeSMS/releases/download/v" + RELEASE_VERSION
 APK_NAME = "VibeSMS-%s.apk" % RELEASE_VERSION
 PACKAGE = "ai.shareapi.vibesms"

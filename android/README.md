@@ -14,6 +14,10 @@ VibeSMS Terminal turns an Android 10+ phone into a private SMS and incoming-call
 
 Android may ask for SMS, phone-state, and call-log permissions. The call-log permission is used only to improve caller-number availability; some devices or carrier builds may still report an incoming caller as unknown.
 
+## License
+
+The Android Terminal source in this directory is licensed under [Apache-2.0](LICENSE). It communicates with the separately licensed VibeSMS service; this license does not grant rights to deploy, copy, modify, or offer the service-side code.
+
 ## Build
 
 The project requires JDK 17 and Android SDK API 36:
@@ -41,14 +45,15 @@ After saving the user Key as the local `VIBESMS_KEY` Secret, connect and unlock 
 python3 skills/vibesms/scripts/setup_android.py --sim-slot 1
 ```
 
-The script downloads the signed v0.4.0 APK and `SHA256SUMS`, verifies it, installs it, grants required runtime permissions, adds the terminal to the Doze allowlist when the device permits it, invokes a receiver protected by Android's shell-only `DUMP` permission, and verifies the Key-scoped cloud status. Use `--sim-slot 2` only after explicitly choosing the second active SIM. The user Key is encrypted by Android Keystore and is never printed by the script.
+The script downloads the signed v0.4.9 APK and `SHA256SUMS`, verifies it, installs it, grants required runtime permissions, adds the terminal to the Doze allowlist when the device permits it, invokes a receiver protected by Android's shell-only `DUMP` permission, and verifies the Key-scoped cloud status. Use `--sim-slot 2` only after explicitly choosing the second active SIM. The user Key is encrypted by Android Keystore and is never printed by the script.
 
 ### Manual setup
 
 1. Install the signed APK from GitHub Releases.
 2. Grant the requested permissions and exempt VibeSMS from aggressive battery optimization if the phone vendor offers that setting.
-3. Enter a Key issued by the VibeSMS administrator.
-4. Select the intended SIM and tap **Connect terminal**.
-5. Use **Sync now** to confirm that the queue drains and the cloud status updates.
+3. On Huawei devices, use the in-app **Huawei lock-screen keepalive check** to open App launch and Battery settings. The standard Android battery exemption is detected automatically; Huawei's App launch and sleep-network switches require manual confirmation because the vendor does not expose reliable read APIs to third-party apps. If successful heartbeats stop for more than 20 minutes, the app asks the user to review both settings.
+4. Enter a Key issued by the VibeSMS administrator.
+5. Select the intended SIM and tap **Connect terminal**.
+6. Use **Sync now** to confirm that the queue drains and the cloud status updates.
 
 Reconnecting the same Key, device, and SIM rotates the device token, which allows a clean reinstall without requiring an administrator to unbind the number first.

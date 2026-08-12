@@ -16,9 +16,9 @@ SPEC.loader.exec_module(SETUP_ANDROID)
 
 class AndroidSetupScriptTest(unittest.TestCase):
     def test_release_asset_is_versioned_and_https(self):
-        self.assertEqual(SETUP_ANDROID.RELEASE_VERSION, "0.4.0")
+        self.assertEqual(SETUP_ANDROID.RELEASE_VERSION, "0.4.9")
         self.assertTrue(SETUP_ANDROID.RELEASE_BASE.startswith("https://github.com/"))
-        self.assertEqual(SETUP_ANDROID.APK_NAME, "VibeSMS-0.4.0.apk")
+        self.assertEqual(SETUP_ANDROID.APK_NAME, "VibeSMS-0.4.9.apk")
 
     def test_provision_receiver_success_is_accepted(self):
         SETUP_ANDROID.verify_provision_result(
@@ -53,9 +53,59 @@ class AndroidSetupScriptTest(unittest.TestCase):
             root / "android" / "app" / "src" / "main" / "AndroidManifest.xml"
         ).read_text(encoding="utf-8")
         setup_script = (SCRIPT_DIRECTORY / "setup_android.py").read_text(encoding="utf-8")
+        service = (
+            root
+            / "android"
+            / "app"
+            / "src"
+            / "main"
+            / "java"
+            / "ai"
+            / "shareapi"
+            / "vibesms"
+            / "KeepAliveService.java"
+        ).read_text(encoding="utf-8")
+        self.assertIn("setExactAndAllowWhileIdle", receiver)
         self.assertIn("setAndAllowWhileIdle", receiver)
         self.assertIn("WAKE_LOCK_TIMEOUT_MS", receiver)
+        self.assertIn("UploadScheduler.enqueueHeartbeat", receiver)
         self.assertIn("android.permission.WAKE_LOCK", manifest)
+        self.assertIn("android.permission.FOREGROUND_SERVICE", manifest)
+        self.assertIn("START_STICKY", service)
+        self.assertIn("startForeground", service)
+        activity = (
+            root
+            / "android"
+            / "app"
+            / "src"
+            / "main"
+            / "java"
+            / "ai"
+            / "shareapi"
+            / "vibesms"
+            / "MainActivity.java"
+        ).read_text(encoding="utf-8")
+        terminal_config = (
+            root
+            / "android"
+            / "app"
+            / "src"
+            / "main"
+            / "java"
+            / "ai"
+            / "shareapi"
+            / "vibesms"
+            / "TerminalConfig.java"
+        ).read_text(encoding="utf-8")
+        self.assertIn("statusHandler.postDelayed", activity)
+        self.assertIn("isIgnoringBatteryOptimizations", activity)
+        self.assertIn("openHuaweiAppLaunchSettings", activity)
+        self.assertIn("openHuaweiBatterySettings", activity)
+        self.assertIn("lastSuccessfulUploadAt", activity)
+        self.assertIn("huawei_app_launch_confirmed", terminal_config)
+        self.assertIn("huawei_sleep_network_confirmed", terminal_config)
+        self.assertIn("ZoneId.systemDefault()", terminal_config)
+        self.assertIn("parseLegacyTime", terminal_config)
         self.assertIn("deviceidle", setup_script)
 
 

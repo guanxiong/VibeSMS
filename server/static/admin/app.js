@@ -63,9 +63,48 @@ function renderRequests(requests) {
   container.innerHTML = `<p class="subsection-label">KEY REQUESTS · ${requests.length}</p>` + requests.map(request => `
     <article class="request-card ${request.status !== "pending" ? "is-handled" : ""}">
       <div class="key-card-head"><div><strong>${escapeHtml(request.email)}</strong><span>${escapeHtml(request.request_id)}</span></div><span class="key-state">${escapeHtml(request.status.toUpperCase())}</span></div>
-      <dl><div><dt>手机号</dt><dd>${escapeHtml(request.phone_number || "—")}</dd></div><div><dt>终端</dt><dd>${escapeHtml(request.device_count)} 台</dd></div><div><dt>用途</dt><dd>${escapeHtml(request.use_case)}</dd></div><div><dt>${request.key_id ? "自动签发 Key ID" : "提交时间"}</dt><dd>${request.key_id ? escapeHtml(request.key_id) : formatTime(request.created_at)}</dd></div>${request.contact ? `<div><dt>补充联系</dt><dd>${escapeHtml(request.contact)}</dd></div>` : ""}</dl>
+      <dl><div><dt>手机号</dt><dd>${escapeHtml(request.phone_number || "—")}</dd></div><div><dt>终端</dt><dd>${escapeHtml(request.device_count)} 台</dd></div><div><dt>用途</dt><dd>${escapeHtml(request.use_case)}</dd></div><div><dt>来源</dt><dd class="mono">${escapeHtml(request.attribution_source || "direct")} / ${escapeHtml(request.attribution_campaign || "none")}</dd></div><div><dt>${request.key_id ? "Key ID" : "提交时间"}</dt><dd>${request.key_id ? escapeHtml(request.key_id) : formatTime(request.created_at)}</dd></div>${request.contact ? `<div><dt>补充联系</dt><dd>${escapeHtml(request.contact)}</dd></div>` : ""}</dl>
       ${request.status === "pending" ? `<div class="key-actions"><button type="button" data-request-id="${escapeHtml(request.request_id)}">填入并生成激活码</button></div>` : ""}
     </article>`).join("");
+}
+
+function renderAcquisitionFunnel(funnel) {
+  const container = document.querySelector("#acquisition-funnel");
+  const totals = funnel.totals || {};
+  const channels = funnel.channels || [];
+  const cards = [
+    ["申请", totals.requested], ["获得 Key", totals.issued], ["完成绑定", totals.bound],
+    ["24h 首次心跳", totals.heartbeat_24h], ["24h 首个事件", totals.first_event_24h]
+  ];
+  const rows = channels.length ? channels.map(channel => `<tr>
+    <td class="mono">${escapeHtml(channel.source)} / ${escapeHtml(channel.campaign)}</td>
+    <td>${channel.requested}</td><td>${channel.issued}</td><td>${channel.bound}</td>
+    <td>${channel.heartbeat_24h}</td><td>${channel.first_event_24h}</td>
+  </tr>`).join("") : '<tr><td colspan="6" class="empty">尚无推广申请</td></tr>';
+  container.innerHTML = `<div class="funnel-summary">${cards.map(([label, value]) => `<article><span>${label}</span><strong>${Number(value || 0)}</strong></article>`).join("")}</div>
+    <div class="table-wrap"><table><thead><tr><th>渠道 / 活动</th><th>申请</th><th>获得 Key</th><th>完成绑定</th><th>24h 首次心跳</th><th>24h 首个事件</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
+function campaignLink(campaign) {
+  const base = campaign.landing === "home" ? "/" : "/apply/";
+  return `${window.location.origin}${base}?campaign=${encodeURIComponent(campaign.code)}`;
+}
+
+function renderCampaigns(campaigns) {
+  const container = document.querySelector("#campaigns");
+  if (!campaigns.length) {
+    container.innerHTML = '<p class="empty">尚无推广活动</p>';
+    return;
+  }
+  container.innerHTML = campaigns.map(campaign => {
+    const link = campaignLink(campaign);
+    return `<article class="campaign-card ${campaign.enabled ? "" : "is-disabled"}">
+      <div class="key-card-head"><div><strong>${escapeHtml(campaign.name)}</strong><span class="mono">${escapeHtml(campaign.code)}</span></div><span class="key-state">${campaign.enabled ? "ACTIVE" : "DISABLED"}</span></div>
+      <dl><div><dt>渠道</dt><dd>${escapeHtml(campaign.source)}</dd></div><div><dt>落地页</dt><dd>${campaign.landing === "home" ? "首页" : "申请页"}</dd></div></dl>
+      <div class="campaign-link"><code>${escapeHtml(link)}</code><button type="button" data-campaign-link="${escapeHtml(link)}">复制链接</button></div>
+      <div class="key-actions"><button type="button" data-campaign-action="${campaign.enabled ? "disable" : "enable"}" data-campaign-id="${escapeHtml(campaign.campaign_id)}">${campaign.enabled ? "停用" : "启用"}</button></div>
+    </article>`;
+  }).join("");
 }
 
 function renderOnboarding(settings) {
@@ -171,13 +210,15 @@ async function refresh() {
   const statusText = document.querySelector("#status-text");
   try {
     const suffix = state.type ? `?limit=200&type=${encodeURIComponent(state.type)}` : "?limit=200";
-    const [devices, events, keys, requests, activationCodes, onboarding] = await Promise.all([
+    const [devices, events, keys, requests, activationCodes, onboarding, funnel, campaigns] = await Promise.all([
       getJson("/api/v1/devices"),
       getJson(`/api/v1/events${suffix}`),
       getJson("/api/v1/admin/keys"),
       getJson("/api/v1/admin/key-requests"),
       getJson("/api/v1/admin/activation-codes"),
-      getJson("/api/v1/admin/onboarding-settings")
+      getJson("/api/v1/admin/onboarding-settings"),
+      getJson("/api/v1/admin/acquisition-funnel"),
+      getJson("/api/v1/admin/campaigns")
     ]);
     renderDevices(devices.devices);
     renderEvents(events.events);
@@ -185,6 +226,8 @@ async function refresh() {
     renderRequests(requests.requests);
     renderActivationCodes(activationCodes.activation_codes);
     renderOnboarding(onboarding);
+    renderAcquisitionFunnel(funnel);
+    renderCampaigns(campaigns.campaigns);
     statusDot.className = "online";
     statusText.textContent = "服务正常";
   } catch (error) {
@@ -269,6 +312,27 @@ document.querySelector("#onboarding-form").addEventListener("submit", async even
   }
 });
 
+document.querySelector("#campaign-form").addEventListener("submit", async event => {
+  event.preventDefault();
+  const submit = event.currentTarget.querySelector("button[type=submit]");
+  const payload = {
+    name: document.querySelector("#campaign-name").value.trim(),
+    code: document.querySelector("#campaign-code").value.trim().toLowerCase(),
+    source: document.querySelector("#campaign-source").value,
+    landing: document.querySelector("#campaign-landing").value
+  };
+  submit.disabled = true;
+  try {
+    await postJson("/api/v1/admin/campaigns", payload);
+    event.currentTarget.reset();
+    await refresh();
+  } catch (error) {
+    window.alert(`创建失败：${error.message}`);
+  } finally {
+    submit.disabled = false;
+  }
+});
+
 document.querySelector("#key-requests").addEventListener("click", event => {
   const button = event.target.closest("button[data-request-id]");
   if (!button) return;
@@ -286,6 +350,32 @@ document.querySelector("#activation-codes").addEventListener("click", async even
     await refresh();
   } catch (error) {
     window.alert(`作废失败：${error.message}`);
+  } finally {
+    button.disabled = false;
+  }
+});
+
+document.querySelector("#campaigns").addEventListener("click", async event => {
+  const copyButton = event.target.closest("button[data-campaign-link]");
+  if (copyButton) {
+    try {
+      await navigator.clipboard.writeText(copyButton.dataset.campaignLink);
+      copyButton.textContent = "已复制";
+    } catch (_error) {
+      window.alert("复制失败，请手动复制链接。");
+    }
+    return;
+  }
+  const button = event.target.closest("button[data-campaign-action]");
+  if (!button) return;
+  const action = button.dataset.campaignAction;
+  if (!window.confirm(action === "disable" ? "停用后新的申请不会再归因到该活动，继续吗？" : "启用该推广活动吗？")) return;
+  button.disabled = true;
+  try {
+    await postJson(`/api/v1/admin/campaigns/${encodeURIComponent(button.dataset.campaignId)}/${action}`);
+    await refresh();
+  } catch (error) {
+    window.alert(`操作失败：${error.message}`);
   } finally {
     button.disabled = false;
   }

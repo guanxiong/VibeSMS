@@ -9,17 +9,18 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:paddingLeft="22dp"
-        android:paddingTop="34dp"
-        android:paddingRight="22dp"
-        android:paddingBottom="40dp">
+        android:paddingLeft="18dp"
+        android:paddingTop="24dp"
+        android:paddingRight="18dp"
+        android:paddingBottom="32dp">
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/terminal_label"
             android:textColor="@color/green"
-            android:textSize="11sp"
+            android:fontFamily="sans-serif-medium"
+            android:textSize="10sp"
             android:textStyle="bold"
             android:letterSpacing="0.12" />
 
@@ -29,49 +30,59 @@
             android:layout_marginTop="8dp"
             android:text="VibeSMS"
             android:textColor="@color/ink"
-            android:textSize="42sp"
+            android:fontFamily="sans-serif-black"
+            android:textSize="30sp"
             android:textStyle="bold" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
+            android:layout_marginTop="18dp"
+            android:breakStrategy="balanced"
+            android:hyphenationFrequency="none"
+            android:maxLines="2"
             android:text="@string/headline"
             android:textColor="@color/ink"
-            android:textSize="24sp"
+            android:fontFamily="sans-serif-medium"
+            android:textSize="19sp"
             android:textStyle="bold" />
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="9dp"
-            android:lineSpacingExtra="4dp"
+            android:breakStrategy="balanced"
+            android:hyphenationFrequency="none"
+            android:lineSpacingExtra="2dp"
             android:text="@string/intro"
             android:textColor="@color/muted"
-            android:textSize="15sp" />
+            android:textSize="13sp" />
 
         <LinearLayout
             android:id="@+id/permissionPanel"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="26dp"
+            android:layout_marginTop="20dp"
             android:background="@drawable/panel_background"
             android:orientation="vertical"
-            android:padding="18dp">
+            android:padding="16dp">
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/permissions_title"
                 android:textColor="@color/ink"
-                android:textSize="17sp"
+                android:fontFamily="sans-serif-medium"
+                android:textSize="15sp"
                 android:textStyle="bold" />
 
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="7dp"
-                android:lineSpacingExtra="3dp"
+                android:breakStrategy="balanced"
+                android:hyphenationFrequency="none"
+                android:lineSpacingExtra="2dp"
                 android:text="@string/permissions_description"
                 android:textColor="@color/muted"
                 android:textSize="13sp" />
@@ -89,19 +100,153 @@
         </LinearLayout>
 
         <LinearLayout
+            android:id="@+id/huaweiKeepAlivePanel"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="14dp"
             android:background="@drawable/panel_background"
             android:orientation="vertical"
-            android:padding="18dp">
+            android:padding="14dp"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="sans-serif-medium"
+                android:text="@string/huawei_keepalive_title"
+                android:textColor="@color/ink"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:breakStrategy="simple"
+                android:hyphenationFrequency="none"
+                android:lineSpacingExtra="1dp"
+                android:text="@string/huawei_keepalive_intro"
+                android:textColor="@color/muted"
+                android:textSize="11sp" />
+
+            <TextView
+                android:id="@+id/huaweiKeepAliveWarning"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:breakStrategy="simple"
+                android:fontFamily="sans-serif-medium"
+                android:hyphenationFrequency="none"
+                android:lineSpacingExtra="1dp"
+                android:textColor="@color/orange"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/huaweiBatteryState"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="9dp"
+                android:breakStrategy="simple"
+                android:hyphenationFrequency="none"
+                android:text="@string/huawei_battery_checking"
+                android:textColor="@color/green"
+                android:textSize="12sp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:fontFamily="sans-serif-medium"
+                android:text="@string/huawei_app_launch_title"
+                android:textColor="@color/ink"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="5dp"
+                android:breakStrategy="simple"
+                android:hyphenationFrequency="none"
+                android:lineSpacingExtra="1dp"
+                android:text="@string/huawei_app_launch_path"
+                android:textColor="@color/muted"
+                android:textSize="11sp" />
+
+            <Button
+                android:id="@+id/huaweiAppLaunchButton"
+                android:layout_width="match_parent"
+                android:layout_height="46dp"
+                android:layout_marginTop="8dp"
+                android:text="@string/open_app_launch_settings"
+                android:textAllCaps="false"
+                android:textSize="12sp" />
+
+            <CheckBox
+                android:id="@+id/huaweiAppLaunchConfirmed"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="@string/huawei_app_launch_confirm"
+                android:textColor="@color/ink"
+                android:textSize="12sp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:fontFamily="sans-serif-medium"
+                android:text="@string/huawei_sleep_network_title"
+                android:textColor="@color/ink"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="5dp"
+                android:breakStrategy="simple"
+                android:hyphenationFrequency="none"
+                android:lineSpacingExtra="1dp"
+                android:text="@string/huawei_sleep_network_path"
+                android:textColor="@color/muted"
+                android:textSize="11sp" />
+
+            <Button
+                android:id="@+id/huaweiBatterySettingsButton"
+                android:layout_width="match_parent"
+                android:layout_height="46dp"
+                android:layout_marginTop="8dp"
+                android:text="@string/open_battery_settings"
+                android:textAllCaps="false"
+                android:textSize="12sp" />
+
+            <CheckBox
+                android:id="@+id/huaweiSleepNetworkConfirmed"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="@string/huawei_sleep_network_confirm"
+                android:textColor="@color/ink"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:background="@drawable/panel_background"
+            android:orientation="vertical"
+            android:padding="16dp">
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/bound_numbers"
                 android:textColor="@color/ink"
-                android:textSize="17sp"
+                android:fontFamily="sans-serif-medium"
+                android:textSize="15sp"
                 android:textStyle="bold" />
 
             <LinearLayout
@@ -118,14 +263,15 @@
             android:layout_marginTop="14dp"
             android:background="@drawable/panel_background"
             android:orientation="vertical"
-            android:padding="18dp">
+            android:padding="16dp">
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="绑定新号码"
                 android:textColor="@color/ink"
-                android:textSize="17sp"
+                android:fontFamily="sans-serif-medium"
+                android:textSize="15sp"
                 android:textStyle="bold" />
 
             <EditText
@@ -140,7 +286,7 @@
                 android:singleLine="true"
                 android:textColor="@color/lime"
                 android:textColorHint="#748078"
-                android:textSize="14sp" />
+                android:textSize="13sp" />
 
             <Spinner
                 android:id="@+id/simSpinner"
@@ -148,8 +294,10 @@
                 android:layout_height="50dp"
                 android:layout_marginTop="10dp"
                 android:background="@drawable/panel_background"
+                android:fontFamily="sans-serif"
                 android:paddingLeft="10dp"
-                android:paddingRight="10dp" />
+                android:paddingRight="10dp"
+                android:spinnerMode="dialog" />
 
             <Button
                 android:id="@+id/bindButton"
@@ -177,25 +325,23 @@
             android:layout_marginTop="14dp"
             android:background="@drawable/panel_background"
             android:orientation="vertical"
-            android:padding="18dp">
+            android:padding="16dp">
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/device_status"
                 android:textColor="@color/ink"
-                android:textSize="17sp"
+                android:fontFamily="sans-serif-medium"
+                android:textSize="15sp"
                 android:textStyle="bold" />
 
-            <TextView
-                android:id="@+id/statusText"
+            <LinearLayout
+                android:id="@+id/statusContainer"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
-                android:fontFamily="monospace"
-                android:lineSpacingExtra="3dp"
-                android:textColor="@color/muted"
-                android:textSize="12sp" />
+                android:orientation="vertical" />
 
             <Button
                 android:id="@+id/keepAliveButton"
@@ -221,9 +367,11 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="18dp"
-            android:lineSpacingExtra="3dp"
+            android:breakStrategy="balanced"
+            android:hyphenationFrequency="none"
+            android:lineSpacingExtra="2dp"
             android:text="@string/privacy_note"
             android:textColor="@color/muted"
-            android:textSize="12sp" />
+            android:textSize="11sp" />
     </LinearLayout>
 </ScrollView>

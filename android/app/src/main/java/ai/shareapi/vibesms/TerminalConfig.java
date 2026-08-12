@@ -13,8 +13,13 @@ import org.json.JSONObject;
 
 import java.nio.charset.StandardCharsets;
 import java.security.KeyStore;
+import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
@@ -27,8 +32,16 @@ final class TerminalConfig {
     private static final String TOKEN_KEY = "device_token_encrypted";
     private static final String BINDINGS_KEY = "bindings";
     private static final String LAST_UPLOAD_KEY = "last_upload";
+    private static final String LAST_UPLOAD_AT_KEY = "last_upload_at";
+    private static final String LAST_SUCCESSFUL_UPLOAD_AT_KEY = "last_successful_upload_at";
+    private static final String HUAWEI_APP_LAUNCH_CONFIRMED_KEY =
+            "huawei_app_launch_confirmed";
+    private static final String HUAWEI_SLEEP_NETWORK_CONFIRMED_KEY =
+            "huawei_sleep_network_confirmed";
     private static final String KEYSTORE = "AndroidKeyStore";
     private static final String KEY_ALIAS = "vibesms-device-token-v1";
+    private static final DateTimeFormatter LOCAL_TIME_FORMAT =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss XXX", Locale.ROOT);
 
     private TerminalConfig() {}
 
@@ -143,12 +156,88 @@ final class TerminalConfig {
         return bindings.size() == 1 ? bindings.get(0).simSlot : 0;
     }
 
-    static void recordUpload(Context context, String value) {
-        preferences(context).edit().putString(LAST_UPLOAD_KEY, value).apply();
+    static void recordUpload(Context context, String status) {
+        long now = System.currentTimeMillis();
+        SharedPreferences.Editor editor = preferences(context).edit()
+                .putString(LAST_UPLOAD_KEY, status)
+                .putLong(LAST_UPLOAD_AT_KEY, now);
+        if (status != null && status.contains("成功")) {
+            editor.putLong(LAST_SUCCESSFUL_UPLOAD_AT_KEY, now);
+        }
+        editor.apply();
+    }
+
+    static long lastSuccessfulUploadAt(Context context) {
+        SharedPreferences preferences = preferences(context);
+        long recordedAt = preferences.getLong(LAST_SUCCESSFUL_UPLOAD_AT_KEY, 0L);
+        if (recordedAt > 0L) {
+            return recordedAt;
+        }
+        String status = preferences.getString(LAST_UPLOAD_KEY, "");
+        if (status != null && status.contains("成功")) {
+            return preferences.getLong(LAST_UPLOAD_AT_KEY, 0L);
+        }
+        return 0L;
+    }
+
+    static boolean huaweiAppLaunchConfirmed(Context context) {
+        return preferences(context).getBoolean(HUAWEI_APP_LAUNCH_CONFIRMED_KEY, false);
+    }
+
+    static void setHuaweiAppLaunchConfirmed(Context context, boolean confirmed) {
+        preferences(context).edit()
+                .putBoolean(HUAWEI_APP_LAUNCH_CONFIRMED_KEY, confirmed)
+                .apply();
+    }
+
+    static boolean huaweiSleepNetworkConfirmed(Context context) {
+        return preferences(context).getBoolean(HUAWEI_SLEEP_NETWORK_CONFIRMED_KEY, false);
+    }
+
+    static void setHuaweiSleepNetworkConfirmed(Context context, boolean confirmed) {
+        preferences(context).edit()
+                .putBoolean(HUAWEI_SLEEP_NETWORK_CONFIRMED_KEY, confirmed)
+                .apply();
     }
 
     static String lastUpload(Context context) {
-        return preferences(context).getString(LAST_UPLOAD_KEY, "从未") ;
+        SharedPreferences preferences = preferences(context);
+        String stored = preferences.getString(LAST_UPLOAD_KEY, "从未");
+        if (stored == null || stored.isBlank() || "从未".equals(stored)) {
+            return "从未";
+        }
+        long recordedAt = preferences.getLong(LAST_UPLOAD_AT_KEY, 0L);
+        String status = stored;
+        if (recordedAt <= 0L) {
+            int separator = stored.lastIndexOf(" · ");
+            if (separator > 0) {
+                status = stored.substring(0, separator);
+                recordedAt = parseLegacyTime(stored.substring(separator + 3));
+                if (recordedAt > 0L) {
+                    preferences.edit()
+                            .putString(LAST_UPLOAD_KEY, status)
+                            .putLong(LAST_UPLOAD_AT_KEY, recordedAt)
+                            .apply();
+                }
+            }
+        }
+        if (recordedAt <= 0L) {
+            return stored;
+        }
+        return status + "\n" + LOCAL_TIME_FORMAT.format(
+                Instant.ofEpochMilli(recordedAt).atZone(ZoneId.systemDefault()));
+    }
+
+    private static long parseLegacyTime(String value) {
+        try {
+            return Instant.parse(value).toEpochMilli();
+        } catch (RuntimeException ignored) {
+            try {
+                return OffsetDateTime.parse(value, LOCAL_TIME_FORMAT).toInstant().toEpochMilli();
+            } catch (RuntimeException invalid) {
+                return 0L;
+            }
+        }
     }
 
     private static SharedPreferences preferences(Context context) {

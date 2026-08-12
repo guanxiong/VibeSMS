@@ -5,7 +5,6 @@ import android.content.Context;
 import android.content.Intent;
 
 import java.io.IOException;
-import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -50,13 +49,14 @@ public final class ProvisionReceiver extends BroadcastReceiver {
                 TerminalConfig.replaceDeviceToken(context, result.deviceToken);
                 TerminalConfig.addBinding(
                         context, result.phoneNumber, simSlot, selected.carrier, userKey);
+                KeepAliveService.start(context);
                 UploadScheduler.scheduleHeartbeat(context);
                 try {
                     ApiClient.upload(
                             "/api/v1/devices/heartbeat",
                             EventPayloads.heartbeat(context).toString(),
                             result.deviceToken);
-                    TerminalConfig.recordUpload(context, "心跳成功 · " + Instant.now());
+                    TerminalConfig.recordUpload(context, "心跳成功");
                 } catch (IOException error) {
                     UploadScheduler.enqueueHeartbeat(context);
                     throw error;

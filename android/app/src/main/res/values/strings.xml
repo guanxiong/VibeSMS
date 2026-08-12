@@ -3,7 +3,7 @@
     <string name="app_name">VibeSMS</string>
     <string name="terminal_label">ANDROID SMS TERMINAL</string>
     <string name="headline">把你的号码连接给 Agent</string>
-    <string name="intro">输入管理员签发的 Key，选择 SIM。绑定后可直接打开该号码的 Web 收件箱。</string>
+    <string name="intro">输入 Key，选择 SIM；绑定后即可通过 Web 收件箱查看短信和来电。</string>
     <string name="permissions_title">接收权限</string>
     <string name="permissions_description">短信权限用于接收正文；电话与通话记录权限用于获取来电状态和号码。VibeSMS 不读取历史短信。</string>
     <string name="grant_permissions">授予权限</string>
@@ -13,5 +13,16 @@
     <string name="enable_keepalive">允许锁屏保活</string>
     <string name="bound_numbers">已绑定号码</string>
     <string name="device_status">终端状态</string>
-    <string name="privacy_note">设备 Token 与收件箱 Key 使用 Android Keystore 加密保存。锁屏心跳按系统节能规则唤醒；离线事件保存在应用私有 SQLite 队列，联网后自动补发。</string>
+    <string name="huawei_keepalive_title">华为保活检查</string>
+    <string name="huawei_keepalive_intro">以下两项无法自动读取。完成设置后请勾选确认，APK 将通过锁屏心跳验证效果。</string>
+    <string name="huawei_battery_checking">电池优化：正在检查…</string>
+    <string name="huawei_app_launch_title">① 应用启动</string>
+    <string name="huawei_app_launch_path">设置 → 应用 → 应用启动管理\nVibeSMS → 关闭“自动管理”\n开启：自启动、关联启动、后台活动</string>
+    <string name="open_app_launch_settings">打开启动管理</string>
+    <string name="huawei_app_launch_confirm">已完成启动设置</string>
+    <string name="huawei_sleep_network_title">② 休眠联网</string>
+    <string name="huawei_sleep_network_path">设置 → 电池 → 更多电池设置\n开启“休眠时始终保持网络连接”\nHarmonyOS 5+：开启“允许休眠时通知”</string>
+    <string name="open_battery_settings">打开电池设置</string>
+    <string name="huawei_sleep_network_confirm">已开启休眠联网</string>
+    <string name="privacy_note">Key 与设备 Token 由 Android Keystore 加密保存。离线事件仅存应用私有队列，联网后自动补发。</string>
 </resources>

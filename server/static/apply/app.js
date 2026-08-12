@@ -2,6 +2,14 @@ const form = document.querySelector("#request-form");
 const submit = document.querySelector("#submit-request");
 const error = document.querySelector("#form-error");
 
+function attributionFor(landing) {
+  const parameters = new URLSearchParams(window.location.search);
+  return {
+    attribution_campaign: parameters.get("campaign") || parameters.get("cmp") || "",
+    attribution_landing: landing
+  };
+}
+
 async function refreshIssuanceStatus() {
   const status = document.querySelector("#issuance-status");
   try {
@@ -22,10 +30,11 @@ form.addEventListener("submit", async event => {
   submit.disabled = true;
   try {
     const fields = new FormData(form);
+    const payload = { ...Object.fromEntries(fields), ...attributionFor("apply") };
     const response = await fetch("/api/v1/key-requests", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(Object.fromEntries(fields))
+      body: JSON.stringify(payload)
     });
     const result = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(result.error || "提交失败，请稍后重试。");

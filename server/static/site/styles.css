@@ -89,6 +89,14 @@ h1 { margin: 0; max-width: 700px; font-size: clamp(52px, 6.4vw, 88px); line-heig
 .capability-rail { display: flex; align-items: center; justify-content: space-between; gap: 18px; overflow: hidden; padding: 18px 2px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); color: #6d746f; font: 700 10px ui-monospace, monospace; letter-spacing: .11em; white-space: nowrap; }
 .capability-rail i { flex: 1; min-width: 18px; height: 1px; background: var(--line); }
 .section { padding: 120px 0; border-bottom: 1px solid var(--line); }
+.beta-section { display: grid; grid-template-columns: minmax(340px, .9fr) minmax(420px, 1.1fr); gap: clamp(60px, 9vw, 140px); align-items: start; }
+.beta-heading h2 { max-width: 650px; }
+.beta-copy { padding-top: 8px; }
+.beta-copy > p { max-width: 620px; margin: 0; color: var(--muted); font-size: 16px; line-height: 1.78; }
+.beta-copy ul { margin: 28px 0 0; padding: 0; list-style: none; border-top: 1px solid var(--ink); }
+.beta-copy li { position: relative; padding: 13px 0 13px 27px; border-bottom: 1px solid var(--line); color: #404742; font-size: 13px; line-height: 1.55; }
+.beta-copy li::before { content: "↳"; position: absolute; left: 0; color: var(--green); }
+.beta-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 22px; margin-top: 30px; }
 .section-intro { display: grid; grid-template-columns: 170px minmax(360px, 1fr) minmax(260px, .7fr); gap: 34px; align-items: start; }
 .section-intro .section-index { margin-top: 8px; }
 h2 { margin: 0; font-size: clamp(38px, 4.6vw, 64px); line-height: 1.06; letter-spacing: -.055em; }
@@ -100,6 +108,16 @@ h2 { margin: 0; font-size: clamp(38px, 4.6vw, 64px); line-height: 1.06; letter-s
 .steps p, .security-lines p { max-width: 600px; margin: 9px 0 0; color: var(--muted); font-size: 14px; line-height: 1.65; }
 .step-action { display: inline-flex; align-items: center; gap: 8px; padding: 8px 0 7px; border-bottom: 1px solid currentColor; color: var(--green); font: 700 11px ui-monospace, monospace; letter-spacing: .04em; text-decoration: none; white-space: nowrap; }
 .step-action:hover { color: var(--ink); }
+.keepalive-guide { display: grid; grid-template-columns: minmax(280px, .72fr) minmax(430px, 1.28fr); gap: 58px 80px; margin: 72px 0 0 170px; padding: 34px 38px 30px; border: 1px solid #29332d; background: var(--terminal); color: var(--terminal-text); box-shadow: 12px 14px 0 var(--paper-deep); }
+.keepalive-guide h3 { margin: 10px 0 0; color: #f1f5f2; font-size: 26px; line-height: 1.25; letter-spacing: -.03em; }
+.keepalive-guide > div > p:last-child { margin: 17px 0 0; color: #98a59c; font-size: 13px; line-height: 1.75; }
+.keepalive-guide ol { margin: 0; padding: 0; list-style: none; border-top: 1px solid #38443c; }
+.keepalive-guide li { display: grid; grid-template-columns: 38px 1fr; gap: 12px; padding: 14px 0; border-bottom: 1px solid #2c3730; }
+.keepalive-guide li span { padding-top: 2px; color: var(--green-bright); font: 700 9px ui-monospace, monospace; }
+.keepalive-guide li p { margin: 0; color: #cbd5ce; font-size: 13px; line-height: 1.65; }
+.keepalive-guide li strong { color: #f3f7f4; }
+.keepalive-note { grid-column: 1 / -1; margin: -9px 0 0; padding-top: 20px; border-top: 1px solid #38443c; color: #89968d; font-size: 11px; line-height: 1.7; }
+.keepalive-note strong { color: var(--green-bright); }
 
 .api-section { display: grid; grid-template-columns: minmax(340px, .82fr) minmax(500px, 1.18fr); gap: clamp(60px, 8vw, 120px); align-items: center; }
 .api-copy h2 { max-width: 650px; }
@@ -169,6 +187,21 @@ footer p { text-align: center; }
 footer > div { display: flex; justify-content: flex-end; gap: 24px; }
 footer a { text-underline-offset: 4px; }
 
+.legal-content { max-width: 820px; margin: 0 auto; padding: 84px 0 120px; }
+.legal-header { padding-bottom: 54px; border-bottom: 1px solid var(--ink); }
+.legal-header h1 { font-size: clamp(48px, 6vw, 76px); }
+.legal-header > p:last-child { max-width: 680px; margin: 28px 0 0; color: var(--muted); font-size: 16px; line-height: 1.78; }
+.legal-content section { padding: 39px 0 42px; border-bottom: 1px solid var(--line); }
+.legal-content section h2 { font-size: clamp(29px, 3.2vw, 39px); }
+.legal-content section p, .legal-content section li { color: #424a44; font-size: 15px; line-height: 1.8; }
+.legal-content section p { margin: 17px 0 0; }
+.legal-content section ul { margin: 17px 0 0; padding-left: 1.25em; }
+.legal-content section li + li { margin-top: 10px; }
+.legal-content section strong { color: var(--ink); }
+.legal-content section code { padding: 2px 4px; background: var(--paper-deep); color: var(--green); font: 700 .9em ui-monospace, monospace; }
+.legal-content section a { color: var(--green); text-underline-offset: 4px; }
+.legal-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 24px; padding-top: 35px; }
+
 body:has(.key-dialog[open]) { overflow: hidden; }
 .key-dialog { width: min(860px, calc(100% - 32px)); max-height: min(880px, calc(100dvh - 32px)); margin: auto; padding: 0; overflow: auto; border: 1px solid #29332d; background: var(--paper); color: var(--ink); box-shadow: 18px 20px 0 #11171338; }
 .key-dialog::backdrop { background: #0c120ee0; backdrop-filter: blur(3px); }
@@ -228,7 +261,8 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--orange); outlin
   .section-intro { grid-template-columns: 1fr; }
   .section-intro > p:last-child { max-width: 620px; }
   .steps { margin-left: 0; }
-  .api-section, .skill-section, .security-section, .project-status { grid-template-columns: 1fr; }
+  .keepalive-guide { grid-template-columns: 1fr; margin-left: 0; }
+  .api-section, .skill-section, .security-section, .project-status, .beta-section { grid-template-columns: 1fr; }
   .security-section { gap: 60px; }
 }
 
@@ -256,7 +290,12 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--orange); outlin
   h2 { font-size: 40px; }
   .steps li { grid-template-columns: 38px 1fr; gap: 12px; padding: 25px 0; }
   .steps li > :last-child { grid-column: 2; justify-self: start; }
+  .keepalive-guide { gap: 30px; padding: 27px 22px 24px; box-shadow: 7px 8px 0 var(--paper-deep); }
+  .keepalive-guide h3 { font-size: 23px; }
   .api-section { gap: 48px; }
+  .legal-content { padding: 60px 0 84px; }
+  .legal-actions { align-items: stretch; flex-direction: column; }
+  .legal-actions .button { width: 100%; }
   .code-window { width: 100%; box-shadow: 7px 8px 0 var(--paper-deep); }
   .code-tabs { gap: 0; padding-inline: 8px; }
   .code-tabs button { padding-inline: 7px; font-size: 8px; }

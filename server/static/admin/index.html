@@ -30,6 +30,32 @@
 
       <section>
         <div class="section-title">
+          <div><p class="eyebrow">ACQUISITION / FIRST-PARTY</p><h2>推广漏斗</h2></div>
+          <span class="section-hint">仅汇总活动与服务端里程碑；不采集 Key、短信内容、IP 或 UA</span>
+        </div>
+        <div id="acquisition-funnel" class="acquisition-funnel"><p class="empty">正在读取推广漏斗…</p></div>
+      </section>
+
+      <section>
+        <div class="section-title">
+          <div><p class="eyebrow">CAMPAIGNS</p><h2>推广活动</h2></div>
+          <span class="section-hint">创建后自动生成链接；停用后新申请不再归因</span>
+        </div>
+        <div class="campaign-console">
+          <form id="campaign-form" class="campaign-form">
+            <label>活动名称<input id="campaign-name" name="name" maxlength="128" placeholder="V2EX · Public Beta" required></label>
+            <label>活动代码<input id="campaign-code" name="code" maxlength="64" pattern="[a-z0-9][a-z0-9._-]{0,63}" placeholder="v2ex-public-beta-202608" required></label>
+            <label>渠道<select id="campaign-source" name="source" required><option value="v2ex">V2EX</option><option value="x">X</option><option value="github">GitHub</option><option value="skills-sh">skills.sh</option><option value="hacker-news">Hacker News</option><option value="reddit">Reddit</option><option value="wechat">微信</option><option value="other">其他</option></select></label>
+            <label>落地页<select id="campaign-landing" name="landing" required><option value="apply">申请页</option><option value="home">首页</option></select></label>
+            <button class="primary-action" type="submit">创建推广活动</button>
+            <p class="field-help">活动代码会公开出现在链接中，请只使用非敏感的英文标识。</p>
+          </form>
+          <div id="campaigns" class="campaigns"><p class="empty">尚无推广活动</p></div>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-title">
           <div><p class="eyebrow">ACCESS</p><h2>号码与用户 Key</h2></div>
           <span class="section-hint">Key 明文仅显示一次</span>
         </div>

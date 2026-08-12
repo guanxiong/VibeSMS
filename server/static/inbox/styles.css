@@ -62,7 +62,7 @@ h1 { margin: 0; font-size: clamp(48px, 6vw, 82px); line-height: 1.01; letter-spa
 .inbox-head h1 { font-size: clamp(46px, 6vw, 72px); }
 .quiet-button { border: 0; border-bottom: 1px solid currentColor; padding: 7px 0; background: transparent; color: var(--green); font-size: 11px; font-weight: 720; cursor: pointer; }
 .quiet-button:hover { color: var(--ink); }
-.identity-strip { display: grid; grid-template-columns: 1.4fr repeat(3, 1fr); margin-top: 48px; border-top: 1px solid var(--ink); border-bottom: 1px solid var(--line); }
+.identity-strip { display: grid; grid-template-columns: 1.2fr 1fr .7fr .7fr 1.5fr; margin-top: 48px; border-top: 1px solid var(--ink); border-bottom: 1px solid var(--line); }
 .identity-strip > div { min-width: 0; padding: 21px 22px 23px 0; }
 .identity-strip > div + div { padding-left: 22px; border-left: 1px solid var(--line); }
 .identity-strip span { display: block; color: #777f79; font: 700 9px ui-monospace, monospace; letter-spacing: .08em; text-transform: uppercase; }
@@ -73,6 +73,7 @@ h1 { margin: 0; font-size: clamp(48px, 6vw, 82px); line-height: 1.01; letter-spa
 #device-state.is-online i { background: var(--green); box-shadow: 0 0 0 4px #18704d18; }
 #device-state.is-offline { color: #9a5545; }
 #device-state.is-offline i { background: #c36a55; }
+#last-online { font-size: 12px; }
 
 .inbox-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 28px; margin-top: 34px; }
 .filters { display: flex; gap: 5px; }
@@ -123,6 +124,7 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 3px solid 
   .identity-strip > div + div { padding-left: 14px; }
   .identity-strip > div:nth-child(3) { padding-left: 0; border-left: 0; border-top: 1px solid var(--line); }
   .identity-strip > div:nth-child(4) { border-top: 1px solid var(--line); }
+  .identity-strip > div:nth-child(5) { grid-column: 1 / -1; padding-left: 0; border-left: 0; border-top: 1px solid var(--line); }
   .inbox-toolbar { align-items: start; flex-direction: column; }
   .refresh-state { width: 100%; justify-content: space-between; }
   .event-item { grid-template-columns: 65px minmax(0, 1fr); gap: 16px; }

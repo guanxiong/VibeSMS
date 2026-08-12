@@ -87,3 +87,7 @@ Prefer `after-id` for task-specific reads. Return only the fields needed for the
 - Network/TLS failure: report the endpoint and failure without printing headers or the Key.
 
 Read [references/api.md](references/api.md) only when raw endpoint schemas or self-hosted integration details are needed.
+
+## License
+
+This Skill and the files under its directory are licensed under [Apache-2.0](LICENSE). The VibeSMS service and its deployment code are separately commercially licensed; this Skill license does not grant rights to the service-side source code.

@@ -31,6 +31,25 @@ h2 { margin: 2px 0 0; font-size: 24px; }
 .summary article { padding: 18px; border: 1px solid var(--line); background: linear-gradient(145deg, var(--panel-2), var(--panel)); border-radius: 14px; }
 .summary span { display: block; color: var(--muted); font-size: 13px; }
 .summary strong { display: block; margin-top: 8px; font-size: 32px; }
+.acquisition-funnel { margin-top: 16px; overflow: hidden; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); }
+.funnel-summary { display: grid; grid-template-columns: repeat(5, 1fr); border-bottom: 1px solid var(--line); }
+.funnel-summary article { padding: 15px 18px; border-right: 1px solid var(--line); }
+.funnel-summary article:last-child { border-right: 0; }
+.funnel-summary span { display: block; color: var(--muted); font-size: 12px; }
+.funnel-summary strong { display: block; margin-top: 7px; font-size: 25px; }
+.campaign-console { display: grid; grid-template-columns: minmax(260px, .7fr) minmax(430px, 1.3fr); gap: 16px; margin-top: 16px; }
+.campaign-form, .campaigns { border: 1px solid var(--line); border-radius: 14px; background: var(--panel); }
+.campaign-form { display: grid; gap: 14px; align-content: start; padding: 18px; }
+.campaign-form label { display: grid; gap: 7px; color: var(--muted); font-size: 11px; }
+.campaign-form .field-help { margin: 0; }
+.campaigns { overflow: hidden; }
+.campaigns > .empty { padding: 20px; }
+.campaign-card { padding: 16px 18px; border-bottom: 1px solid var(--line); }
+.campaign-card:last-child { border-bottom: 0; }
+.campaign-card dl { margin-top: 13px; }
+.campaign-link { display: grid; grid-template-columns: minmax(0, 1fr) auto; margin-top: 14px; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: #0e1214; }
+.campaign-link code { overflow-x: auto; padding: 10px; color: #dff8e9; font-size: 11px; white-space: nowrap; }
+.campaign-link button { border: 0; border-left: 1px solid var(--line); border-radius: 0; font-size: 11px; }
 section { margin-top: 40px; }
 button { border: 1px solid var(--line); border-radius: 9px; padding: 8px 13px; background: var(--panel); color: var(--text); cursor: pointer; }
 button:hover, button.active { border-color: var(--accent); color: var(--accent); }
@@ -115,8 +134,11 @@ tbody tr:last-child td { border-bottom: 0; }
   header { align-items: flex-start; flex-direction: column; }
   .header-actions { width: 100%; justify-content: space-between; }
   .summary { grid-template-columns: 1fr 1fr; }
+  .funnel-summary { grid-template-columns: 1fr 1fr; }
+  .funnel-summary article { border-bottom: 1px solid var(--line); }
   .section-title { align-items: flex-end; }
   .key-console { grid-template-columns: 1fr; }
+  .campaign-console { grid-template-columns: 1fr; }
   .activation-console { grid-template-columns: 1fr; }
   .key-form { grid-template-columns: 1fr; }
   .key-form label, .key-form label:first-child, .key-form label:nth-child(3), .key-form label:nth-child(4), .key-form .sim-field, .key-form .primary-action { grid-column: 1; }

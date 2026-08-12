@@ -27,7 +27,16 @@ function formatTime(value) {
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime())
     ? escapeHtml(value)
-    : parsed.toLocaleString("zh-CN", { hour12: false });
+    : parsed.toLocaleString("zh-CN", { hour12: false, timeZoneName: "short" });
+}
+
+function formatElapsed(seconds) {
+  if (!Number.isFinite(seconds) || seconds < 0) return "";
+  if (seconds < 10) return "刚刚";
+  if (seconds < 60) return `${Math.floor(seconds)} 秒前`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)} 分钟前`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)} 小时前`;
+  return `${Math.floor(seconds / 86400)} 天前`;
 }
 
 function highlightOtp(value) {
@@ -52,6 +61,17 @@ function renderStatus(status) {
   document.querySelector("#phone-number").textContent = status.phone_number || "—";
   document.querySelector("#sim-slot").textContent = status.sim_slot ? `SIM ${status.sim_slot}` : "尚未绑定";
   document.querySelector("#cursor-value").textContent = String(status.cursor || 0);
+
+  const lastSeen = status.device?.last_seen || status.device?.last_heartbeat || "";
+  const lastOnline = document.querySelector("#last-online");
+  if (lastSeen) {
+    const elapsed = formatElapsed(Number(status.seconds_since_seen));
+    lastOnline.textContent = elapsed ? `${formatTime(lastSeen)} · ${elapsed}` : formatTime(lastSeen);
+    lastOnline.title = `服务器最后收到该终端请求的时间：${formatTime(lastSeen)}`;
+  } else {
+    lastOnline.textContent = "暂无记录";
+    lastOnline.removeAttribute("title");
+  }
 
   const deviceState = document.querySelector("#device-state");
   const indicator = document.createElement("i");
