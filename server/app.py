@@ -26,7 +26,7 @@ from urllib.parse import parse_qs, urlparse
 from urllib.request import Request, urlopen
 
 
-VERSION = "0.12.0"
+VERSION = "0.12.1"
 PRODUCT_NAME = "VibeSMS"
 MAX_BODY_BYTES = 1024 * 1024
 STATIC_DIR = Path(__file__).with_name("static")

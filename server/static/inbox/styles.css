@@ -81,11 +81,20 @@ html[lang="en"] .keep-together { white-space: normal; }
 #last-online { font-size: 12px; }
 
 .webhook-panel { margin-top: 42px; padding: 28px; border: 1px solid #29332d; background: var(--terminal); color: white; }
-.webhook-head { display: flex; align-items: start; justify-content: space-between; gap: 24px; }
+.webhook-head { display: flex; align-items: center; justify-content: space-between; gap: 24px; cursor: pointer; list-style: none; }
+.webhook-head::-webkit-details-marker { display: none; }
+.webhook-head::marker { content: ""; }
+.webhook-head:hover .webhook-toggle-label { color: var(--green-bright); }
 .webhook-head .eyebrow { margin-bottom: 9px; color: var(--green-bright); }
 .webhook-head h2 { margin: 0; font-size: clamp(25px, 3vw, 36px); letter-spacing: -.045em; }
+.webhook-summary-meta { display: flex; align-items: center; gap: 12px; flex: 0 0 auto; }
 .webhook-state { flex: 0 0 auto; padding: 7px 9px; border: 1px solid #46534b; color: #9ba69e; font: 700 9px ui-monospace, monospace; letter-spacing: .08em; }
 .webhook-state.is-enabled { border-color: #70994c; color: var(--green-bright); }
+.webhook-toggle-label { color: #aeb8b1; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.webhook-summary-meta > i { width: 9px; height: 9px; border-right: 1px solid var(--green-bright); border-bottom: 1px solid var(--green-bright); transform: rotate(45deg) translateY(-2px); transition: transform .18s ease; }
+.webhook-panel[open] .webhook-summary-meta > i { transform: rotate(225deg) translate(-2px, -2px); }
+details.webhook-panel:not([open]) > .webhook-body { display: none; }
+.webhook-body { padding-top: 22px; }
 .webhook-intro { max-width: 72ch; margin: 17px 0 0; color: #a6b0a9; font-size: 13px; line-height: 1.72; }
 .webhook-form { display: grid; grid-template-columns: 1fr 1fr; gap: 19px 22px; margin-top: 25px; }
 .webhook-form > label { display: grid; gap: 8px; color: #d8ded9; font-size: 12px; font-weight: 680; }
@@ -172,7 +181,9 @@ a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visib
   .identity-strip > div:nth-child(4) { border-top: 1px solid var(--line); }
   .identity-strip > div:nth-child(5) { grid-column: 1 / -1; padding-left: 0; border-left: 0; border-top: 1px solid var(--line); }
   .webhook-panel { padding: 21px 18px; }
-  .webhook-head { flex-direction: column; gap: 13px; }
+  .webhook-head { align-items: flex-start; flex-direction: column; gap: 13px; }
+  .webhook-summary-meta { width: 100%; }
+  .webhook-toggle-label { margin-left: auto; }
   .webhook-form { grid-template-columns: 1fr; }
   .webhook-toggle, .webhook-privacy, .webhook-actions, .webhook-feedback { grid-column: 1; }
   .webhook-actions .danger-button { margin-left: 0; }

@@ -7,6 +7,7 @@ const loginForm = document.querySelector("#login-form");
 const keyInput = document.querySelector("#key-input");
 const loginButton = document.querySelector("#login-button");
 const loginError = document.querySelector("#login-error");
+const webhookPanel = document.querySelector("#webhook-panel");
 const tr = (zh, en) => window.VibeSMSI18n?.text(zh, en) ?? zh;
 
 const escapeHtml = (value = "") => String(value).replace(/[&<>'"]/g, character => ({
@@ -65,7 +66,18 @@ function webhookFeedback(message = "", isError = false) {
   const feedback = document.querySelector("#webhook-feedback");
   feedback.textContent = message;
   feedback.classList.toggle("is-error", isError);
+  if (isError && webhookPanel) webhookPanel.open = true;
 }
+
+function syncWebhookToggleLabel() {
+  const label = document.querySelector("#webhook-toggle-label");
+  if (label) label.textContent = webhookPanel?.open
+    ? tr("收起设置", "Collapse settings")
+    : tr("展开设置", "Expand settings");
+}
+
+webhookPanel?.addEventListener("toggle", syncWebhookToggleLabel);
+syncWebhookToggleLabel();
 
 function renderWebhookDeliveries(deliveries = []) {
   const list = document.querySelector("#webhook-deliveries");

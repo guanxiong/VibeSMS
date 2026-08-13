@@ -225,6 +225,8 @@
     "最后在线": "Last online",
     "飞书 Webhook 转发": "Feishu webhook forwarding",
     "尚未配置": "Not configured",
+    "展开设置": "Expand settings",
+    "收起设置": "Collapse settings",
     "服务端只转发命中关键词的新短信。多个关键词按“任一命中”处理；例如仅填写“验证码”，其他短信不会发送到飞书。": "The server forwards only new messages matching a keyword. Multiple keywords use any-match logic; if you enter only “verification code,” other messages are not sent to Feishu.",
     "飞书机器人 Webhook 地址": "Feishu bot webhook URL",
     "首次配置必填": "Required for first setup",

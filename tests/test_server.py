@@ -213,6 +213,20 @@ class GatewayServerTest(unittest.TestCase):
         self.assertIn('parameters.get("key")', inbox_script)
         self.assertIn("/api/v1/webhooks/feishu", inbox_script)
         self.assertIn('id="webhook-form"', inbox_html)
+        self.assertIn('<details id="webhook-panel" class="webhook-panel">', inbox_html)
+        self.assertNotIn('<details id="webhook-panel" class="webhook-panel" open>', inbox_html)
+        self.assertIn("syncWebhookToggleLabel", inbox_script)
+        inbox_styles = (
+            Path(__file__).resolve().parents[1]
+            / "server"
+            / "static"
+            / "inbox"
+            / "styles.css"
+        ).read_text(encoding="utf-8")
+        self.assertIn(
+            "details.webhook-panel:not([open]) > .webhook-body { display: none; }",
+            inbox_styles,
+        )
         i18n_script = (
             Path(__file__).resolve().parents[1]
             / "server"
